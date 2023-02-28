@@ -168,17 +168,12 @@ auto main(int argc, char **argv) -> int {
 
       while (!metrics.ShouldFinish()) {
         auto *page = bpm->FetchPage(page_ids[page_idx], AccessType::Scan);
-        if (page == nullptr) {
-          continue;
-        }
 
         char &ch = page->GetData()[page_idx % 1024];
-        page->WLatch();
         ch += 1;
         if (ch == 0) {
           ch = 1;
         }
-        page->WUnlatch();
 
         bpm->UnpinPage(page->GetPageId(), true, AccessType::Scan);
         page_idx = (page_idx + 1) % BUSTUB_PAGE_CNT;
@@ -202,18 +197,14 @@ auto main(int argc, char **argv) -> int {
       while (!metrics.ShouldFinish()) {
         auto page_idx = dist(gen);
         auto *page = bpm->FetchPage(page_ids[page_idx], AccessType::Get);
-        if (page == nullptr) {
-          continue;
-        }
 
-        page->RLatch();
         char ch = page->GetData()[page_idx % 1024];
-        page->RUnlatch();
         if (ch == 0) {
           throw std::runtime_error("invalid data");
         }
 
         bpm->UnpinPage(page->GetPageId(), false, AccessType::Get);
+        page_idx += 1;
         metrics.Tick();
         metrics.Report();
       }
