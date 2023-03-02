@@ -16,35 +16,35 @@ namespace bustub
 {
 
   /// A special type that will block the move constructor and move assignment operator. Used in TrieStore tests.
-  class MoveBlocked
-  {
-  public:
-    explicit MoveBlocked(std::future<int> wait) : wait_(std::move(wait)) {}
+  // class MoveBlocked
+  // {
+  // public:
+  //   explicit MoveBlocked(std::future<int> wait) : wait_(std::move(wait)) {}
 
-    MoveBlocked(const MoveBlocked &) = delete;
-    MoveBlocked(MoveBlocked &&that) noexcept
-    {
-      if (!that.waited_)
-      {
-        that.wait_.get();
-      }
-      that.waited_ = waited_ = true;
-    }
+  //   MoveBlocked(const MoveBlocked &) = delete;
+  //   MoveBlocked(MoveBlocked &&that) noexcept
+  //   {
+  //     if (!that.waited_)
+  //     {
+  //       that.wait_.get();
+  //     }
+  //     that.waited_ = waited_ = true;
+  //   }
 
-    auto operator=(const MoveBlocked &) -> MoveBlocked & = delete;
-    auto operator=(MoveBlocked &&that) noexcept -> MoveBlocked &
-    {
-      if (!that.waited_)
-      {
-        that.wait_.get();
-      }
-      that.waited_ = waited_ = true;
-      return *this;
-    }
+  //   auto operator=(const MoveBlocked &) -> MoveBlocked & = delete;
+  //   auto operator=(MoveBlocked &&that) noexcept -> MoveBlocked &
+  //   {
+  //     if (!that.waited_)
+  //     {
+  //       that.wait_.get();
+  //     }
+  //     that.waited_ = waited_ = true;
+  //     return *this;
+  //   }
 
-    bool waited_{false};
-    std::future<int> wait_;
-  };
+  //   bool waited_{false};
+  //   std::future<int> wait_;
+  // };
 
   // A TrieNode is a node in a Trie.
   class TrieNode

@@ -7,7 +7,7 @@ namespace bustub
 
   bool Trie::dfs_remove(std::shared_ptr<TrieNode> p, std::shared_ptr<TrieNode> fa, std::string_view &key, int u) const
   {
-    if (u == key.size())
+    if (u == (int)key.size())
     {
       if (!p->is_value_node_)
         return false;
@@ -147,23 +147,23 @@ namespace bustub
   // implementation of the template functions, we need to explicitly instantiate them here, so that they can be picked up
   // by the linker.
 
-  template auto Trie::Put(std::string_view key, uint32_t value) const -> Trie;
-  template auto Trie::Get(std::string_view key) const -> const uint32_t *;
+  // template auto Trie::Put(std::string_view key, uint32_t value) const -> Trie;
+  // template auto Trie::Get(std::string_view key) const -> const uint32_t *;
 
-  template auto Trie::Put(std::string_view key, uint64_t value) const -> Trie;
-  template auto Trie::Get(std::string_view key) const -> const uint64_t *;
+  // template auto Trie::Put(std::string_view key, uint64_t value) const -> Trie;
+  // template auto Trie::Get(std::string_view key) const -> const uint64_t *;
 
-  template auto Trie::Put(std::string_view key, std::string value) const -> Trie;
-  template auto Trie::Get(std::string_view key) const -> const std::string *;
+  // template auto Trie::Put(std::string_view key, std::string value) const -> Trie;
+  // template auto Trie::Get(std::string_view key) const -> const std::string *;
 
   // If your solution cannot compile for non-copy tests, you can remove the below lines to get partial score.
 
-  using Integer = std::unique_ptr<uint32_t>;
+  // using Integer = std::unique_ptr<uint32_t>;
 
-  template auto Trie::Put(std::string_view key, Integer value) const -> Trie;
-  template auto Trie::Get(std::string_view key) const -> const Integer *;
+  // template auto Trie::Put(std::string_view key, Integer value) const -> Trie;
+  // template auto Trie::Get(std::string_view key) const -> const Integer *;
 
-  template auto Trie::Put(std::string_view key, MoveBlocked value) const -> Trie;
-  template auto Trie::Get(std::string_view key) const -> const MoveBlocked *;
+  // template auto Trie::Put(std::string_view key, MoveBlocked value) const -> Trie;
+  // template auto Trie::Get(std::string_view key) const -> const MoveBlocked *;
 
 } // namespace bustub
