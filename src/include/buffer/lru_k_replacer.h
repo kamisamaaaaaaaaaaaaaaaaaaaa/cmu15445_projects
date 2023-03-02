@@ -17,6 +17,7 @@
 #include <mutex> // NOLINT
 #include <unordered_map>
 #include <vector>
+#include <set>
 
 #include "common/config.h"
 #include "common/macros.h"
@@ -37,11 +38,6 @@ namespace bustub
     // Remove maybe_unused if you start using them. Feel free to change the member variables as you want.
   public:
     std::vector<size_t> history_;
-    // [[maybe_unused]] size_t k_;
-    frame_id_t fid_;
-    bool is_evictable_{false};
-    LRUKNode *left{nullptr};
-    LRUKNode *right{nullptr};
   };
 
   /**
@@ -74,7 +70,7 @@ namespace bustub
      *
      * @brief Destroys the LRUReplacer.
      */
-    ~LRUKReplacer();
+    ~LRUKReplacer() = default;
 
     /**
      * TODO(P1): Add implementation
@@ -156,31 +152,22 @@ namespace bustub
      */
     auto Size() -> size_t;
 
-    // 将node插到pre后面
-    void insert(LRUKNode *pre, LRUKNode *node);
-
-    // 删除node
-    void remove(LRUKNode *node);
-
-    // 判断链表1是否有可驱逐的点
-    bool empty1();
-
   private:
     // TODO(student): implement me! You can replace these member variables as you like.
     // Remove maybe_unused if you start using them.
 
-    // 链表1存INF，用于LRU，头新尾旧，删尾部
-    LRUKNode *head1;
-    LRUKNode *tail1;
-
-    // 链表2存非INF，按倒数第k个history从小到大排，头旧尾新，删尾部
-    LRUKNode *head2;
-    LRUKNode *tail2;
-
-    // 链表1，id->节点的映射
+    // S1中，id->节点
     std::unordered_map<frame_id_t, LRUKNode *> node_store_1;
-    // 链表2，id->节点的映射
+    // S2中，id->节点
     std::unordered_map<frame_id_t, LRUKNode *> node_store_2;
+
+    // S1用来存INF的节点，S2用来存非INF的节点，里面都是可驱逐的
+    // 形式为{倒数k的his,id}
+    std::set<std::pair<size_t, frame_id_t>> S1;
+    std::set<std::pair<size_t, frame_id_t>> S2;
+
+    // 不可驱逐的的所有节点
+    std::unordered_map<frame_id_t, LRUKNode *> inevictable_store;
 
     // 时间戳
     size_t current_timestamp_{0};
