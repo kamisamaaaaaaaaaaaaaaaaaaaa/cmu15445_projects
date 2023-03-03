@@ -18,6 +18,20 @@ namespace bustub
 
     LRUKReplacer::LRUKReplacer(size_t num_frames, size_t k) : replacer_size_(num_frames), k_(k) {}
 
+    LRUKReplacer::~LRUKReplacer()
+    {
+        for (auto &[k, v] : node_store_1)
+            delete v;
+        for (auto &[k, v] : node_store_2)
+            delete v;
+        for (auto &[k, v] : inevictable_store)
+            delete v;
+
+        node_store_1.clear();
+        node_store_2.clear();
+        inevictable_store.clear();
+    }
+
     auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool
     {
         if (curr_size_ == 0)
@@ -53,9 +67,8 @@ namespace bustub
         ++current_timestamp_;
         if (node_store_1.count(frame_id) == 0 && node_store_2.count(frame_id) == 0 && inevictable_store.count(frame_id) == 0)
         {
-            auto t = new LRUKNode();
             // 没有节点，先创建，并且一开始是不可驱逐的
-            inevictable_store[frame_id] = t;
+            inevictable_store[frame_id] = new LRUKNode();
         }
 
         // 如果不可驱逐，更新history，直接返回即可

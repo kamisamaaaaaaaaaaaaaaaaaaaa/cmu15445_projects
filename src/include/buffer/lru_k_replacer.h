@@ -70,7 +70,7 @@ namespace bustub
      *
      * @brief Destroys the LRUReplacer.
      */
-    ~LRUKReplacer() = default;
+    ~LRUKReplacer();
 
     /**
      * TODO(P1): Add implementation
@@ -151,6 +151,8 @@ namespace bustub
      * @return size_t
      */
     auto Size() -> size_t;
+
+    size_t curr_size() const { return curr_size_; }
 
   private:
     // TODO(student): implement me! You can replace these member variables as you like.

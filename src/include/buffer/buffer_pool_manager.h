@@ -71,6 +71,13 @@ namespace bustub
      * @param[out] page_id id of created page
      * @return nullptr if no new pages could be created, otherwise pointer to new page
      */
+
+    // 生成一个新的page，包括以下内容：
+    // 1、分配一个新的page_id
+    // 2、为该page找到一个replacer里面空闲或可驱逐的frame，并获取其frame_id
+    // 3、其page对应的内容存放在pages_[frame_id]中，并且需要初始化page的内容（各个参数）
+    // 4、锁定该page(access对应的frame，并且将对应的frame设成不可驱逐)
+    // 5、若无可用frame，则直接return nullptr
     auto NewPage(page_id_t *page_id) -> Page *;
 
     /**
@@ -104,6 +111,10 @@ namespace bustub
      * @param access_type type of access to the page, only needed for leaderboard tests.
      * @return nullptr if page_id cannot be fetched, otherwise pointer to the requested page
      */
+    // 根据page_id获取对应的page：
+    // 1、如果所有frame都被占用了并且都不可驱逐的话，那么每个frame对应的page都不可获取
+    // 2、如果存在对应的page的话，则锁定后直接返回page
+    // 3、若不存在的话，则创造一个该page_id对应的空白page，并且根据page_id从disk中把数据读到page里
     auto FetchPage(page_id_t page_id, AccessType access_type = AccessType::Unknown) -> Page *;
 
     /**
@@ -137,6 +148,7 @@ namespace bustub
      * @param access_type type of access to the page, only needed for leaderboard tests.
      * @return false if the page is not in the page table or its pin count is <= 0 before this call, true otherwise
      */
+    // 解出page的锁定，并判定该page在锁定时是否修改过
     auto UnpinPage(page_id_t page_id, bool is_dirty, AccessType access_type = AccessType::Unknown) -> bool;
 
     /**
@@ -174,6 +186,14 @@ namespace bustub
      */
     auto DeletePage(page_id_t page_id) -> bool;
 
+    void From_Free_List_Get_Frame_id(frame_id_t *frame_id);
+
+    void From_Evitable_Get_Frame_id(frame_id_t *frame_id);
+
+    Page *Init_New_Page(frame_id_t frame_id, page_id_t page_id);
+
+    void PinPage(page_id_t page_id);
+
   private:
     /** Number of pages in the buffer pool. */
     const size_t pool_size_;
@@ -182,6 +202,7 @@ namespace bustub
 
     /** Array of buffer pool pages. */
     Page *pages_;
+
     /** Pointer to the disk manager. */
     DiskManager *disk_manager_ __attribute__((__unused__));
     /** Pointer to the log manager. Please ignore this for P1. */
