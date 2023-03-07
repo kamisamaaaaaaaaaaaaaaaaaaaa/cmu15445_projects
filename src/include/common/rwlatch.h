@@ -12,42 +12,40 @@
 
 #pragma once
 
-#include <mutex> // NOLINT
+#include <mutex>  // NOLINT
 #include <shared_mutex>
 
 #include "common/macros.h"
 
-namespace bustub
-{
+namespace bustub {
+
+/**
+ * Reader-Writer latch backed by std::mutex.
+ */
+class ReaderWriterLatch {
+ public:
+  /**
+   * Acquire a write latch.
+   */
+  void WLock() { mutex_.lock(); }
 
   /**
-   * Reader-Writer latch backed by std::mutex.
+   * Release a write latch.
    */
-  class ReaderWriterLatch
-  {
-  public:
-    /**
-     * Acquire a write latch.
-     */
-    void WLock() { mutex_.lock(); }
+  void WUnlock() { mutex_.unlock(); }
 
-    /**
-     * Release a write latch.
-     */
-    void WUnlock() { mutex_.unlock(); }
+  /**
+   * Acquire a read latch.
+   */
+  void RLock() { mutex_.lock_shared(); }
 
-    /**
-     * Acquire a read latch.
-     */
-    void RLock() { mutex_.lock_shared(); }
+  /**
+   * Release a read latch.
+   */
+  void RUnlock() { mutex_.unlock_shared(); }
 
-    /**
-     * Release a read latch.
-     */
-    void RUnlock() { mutex_.unlock_shared(); }
+ private:
+  std::shared_mutex mutex_;
+};
 
-  private:
-    std::shared_mutex mutex_;
-  };
-
-} // namespace bustub
+}  // namespace bustub
