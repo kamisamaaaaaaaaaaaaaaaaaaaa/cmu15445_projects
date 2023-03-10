@@ -72,6 +72,13 @@ class BPlusTree {
   // Returns true if this B+ tree has no keys and values.
   auto IsEmpty() const -> bool;
 
+  auto Binary_Find(LeafPage *leaf_page, const KeyType &key) -> int;
+  auto Binary_Find(InternalPage *internal_page, const KeyType &key) -> int;
+
+  auto Split_Leaf(LeafPage *leaf, const KeyType &key, const ValueType &value, page_id_t *new_id) -> KeyType;
+
+  auto Split_Internal(InternalPage *internal, const KeyType &key, page_id_t *new_id, page_id_t new_child_id) -> KeyType;
+
   // Insert a key-value pair into this B+ tree.
   auto Insert(const KeyType &key, const ValueType &value, Transaction *txn = nullptr) -> bool;
 
