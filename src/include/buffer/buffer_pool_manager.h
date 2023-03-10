@@ -192,6 +192,8 @@ class BufferPoolManager {
 
   void PinPage(page_id_t page_id);
 
+  auto Get_Usable_Size() -> size_t { return free_list_.size() + replacer_->Size(); };
+
  private:
   /** Number of pages in the buffer pool. */
   const size_t pool_size_;

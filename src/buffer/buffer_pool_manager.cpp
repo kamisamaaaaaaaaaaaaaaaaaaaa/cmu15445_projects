@@ -84,6 +84,7 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
   latch_.lock();
   // 如果没有空闲的frame或者可驱逐的frame，则返回nullptr
   if (free_list_.empty() && replacer_->Size() == 0) {
+    std::cout << "has_fulled" << std::endl;
     page_id = nullptr;
     latch_.unlock();
     return nullptr;
@@ -114,7 +115,6 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
 // 根据page_id获取该page
 auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType access_type) -> Page * {
   latch_.lock();
-  std::cout << page_id << std::endl;
   // 若不存在的话，则创造一个该page_id对应的空白page，并且据page_id从disk中把数据读到page里
   if (page_table_.count(page_id) == 0) {
     // ps:当没有可用frames时，直接返回nullptr（此时需要从disk直接读取）
@@ -153,7 +153,7 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType
 
 auto BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty, [[maybe_unused]] AccessType access_type) -> bool {
   latch_.lock();
-
+  // std::cout << "Unpined" << std::endl;
   if (page_table_.count(page_id) == 0) {
     latch_.unlock();
     return false;

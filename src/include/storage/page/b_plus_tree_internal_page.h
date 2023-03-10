@@ -60,6 +60,8 @@ class BPlusTreeInternalPage : public BPlusTreePage {
    */
   void SetKeyAt(int index, const KeyType &key);
 
+  void SetAt(int index, const KeyType &key, const ValueType &val);
+
   /**
    *
    * @param value the value to search for
