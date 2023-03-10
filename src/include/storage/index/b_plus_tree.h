@@ -42,7 +42,7 @@ class Context {
  public:
   // When you insert into / remove from the B+ tree, store the write guard of header page here.
   // Remember to drop the header page guard and set it to nullopt when you want to unlock all.
-  std::optional<WritePageGuard> header_page_{std::nullopt};
+  std::optional<WritePageGuard> header_page_guard_{std::nullopt};
 
   // Save the root page id here so that it's easier to know if the current page is the root page.
   page_id_t root_page_id_{INVALID_PAGE_ID};
@@ -72,12 +72,12 @@ class BPlusTree {
   // Returns true if this B+ tree has no keys and values.
   auto IsEmpty() const -> bool;
 
-  auto Binary_Find(LeafPage *leaf_page, const KeyType &key) -> int;
-  auto Binary_Find(InternalPage *internal_page, const KeyType &key) -> int;
+  auto BinaryFind(const LeafPage *leaf_page, const KeyType &key) -> int;
+  auto BinaryFind(const InternalPage *internal_page, const KeyType &key) -> int;
 
-  auto Split_Leaf(LeafPage *leaf, const KeyType &key, const ValueType &value, page_id_t *new_id) -> KeyType;
+  auto SplitLeaf(LeafPage *leaf, const KeyType &key, const ValueType &value, page_id_t *new_id) -> KeyType;
 
-  auto Split_Internal(InternalPage *internal, const KeyType &key, page_id_t *new_id, page_id_t new_child_id) -> KeyType;
+  auto SplitInternal(InternalPage *internal, const KeyType &key, page_id_t *new_id, page_id_t new_child_id) -> KeyType;
 
   // Insert a key-value pair into this B+ tree.
   auto Insert(const KeyType &key, const ValueType &value, Transaction *txn = nullptr) -> bool;

@@ -24,41 +24,49 @@ BPLUSTREE_TYPE::BPlusTree(std::string name, page_id_t header_page_id, BufferPool
 
 // 二分查找
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::Binary_Find(LeafPage *leaf_page, const KeyType &key) -> int {
+auto BPLUSTREE_TYPE::BinaryFind(const LeafPage *leaf_page, const KeyType &key) -> int {
   // std::cout << "binary" << leaf_page << std::endl;
-  int l = 0, r = leaf_page->GetSize() - 1;
+  int l = 0;
+  int r = leaf_page->GetSize() - 1;
   while (l < r) {
     int mid = (l + r + 1) >> 1;
-    if (comparator_(leaf_page->KeyAt(mid), key) != 1)
+    if (comparator_(leaf_page->KeyAt(mid), key) != 1) {
       l = mid;
-    else
+    } else {
       r = mid - 1;
+    }
   }
 
-  if (r >= 0 && comparator_(leaf_page->KeyAt(r), key) == 1) r = -1;
+  if (r >= 0 && comparator_(leaf_page->KeyAt(r), key) == 1) {
+    r = -1;
+  }
 
   return r;
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::Binary_Find(InternalPage *internal_page, const KeyType &key) -> int {
+auto BPLUSTREE_TYPE::BinaryFind(const InternalPage *internal_page, const KeyType &key) -> int {
   // if (internal_page == nullptr) return -1;
 
   // if (internal_page->GetSize() == 0) return 0;
 
-  int l = 1, r = internal_page->GetSize() - 1;
+  int l = 1;
+  int r = internal_page->GetSize() - 1;
   // std::cout << "Binary: "
   //           << " key: " << key << " " << r << std::endl;
   while (l < r) {
     int mid = (l + r + 1) >> 1;
     // std::cout << "mid: " << mid << std::endl;
-    if (comparator_(internal_page->KeyAt(mid), key) != 1)
+    if (comparator_(internal_page->KeyAt(mid), key) != 1) {
       l = mid;
-    else
+    } else {
       r = mid - 1;
+    }
   }
 
-  if (r == -1 || comparator_(internal_page->KeyAt(r), key) == 1) r = 0;
+  if (r == -1 || comparator_(internal_page->KeyAt(r), key) == 1) {
+    r = 0;
+  }
 
   return r;
 }
@@ -80,7 +88,6 @@ INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *txn) -> bool {
   // Declaration of context instance.
   Context ctx;
-  (void)ctx;
 
   // printf("---------------------------------\n");
   // std::cout << "GetValue: " << key << std::endl;
@@ -89,31 +96,43 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
   // Print(bpm_);
   // printf("Tree as Above-----------------------------------\n");
 
-  if (header_page_id_ == INVALID_PAGE_ID) return false;
+  if (header_page_id_ == INVALID_PAGE_ID) {
+    return false;
+  }
 
-  auto *header_page = reinterpret_cast<BPlusTreeHeaderPage *>(bpm_->FetchPage(header_page_id_)->GetData());
+  auto header_page_guard = bpm_->FetchPageRead(header_page_id_);
+  auto header_page = header_page_guard.As<BPlusTreeHeaderPage>();
+  // auto *header_page = reinterpret_cast<BPlusTreeHeaderPage *>(bpm_->FetchPage(header_page_id_)->GetData());
 
-  if (header_page->root_page_id_ == INVALID_PAGE_ID) return false;
+  if (header_page->root_page_id_ == INVALID_PAGE_ID) {
+    return false;
+  }
 
-  auto *root_page = reinterpret_cast<BPlusTreePage *>(bpm_->FetchPage(header_page->root_page_id_)->GetData());
+  auto root_page_guard = bpm_->FetchPageRead(header_page->root_page_id_);
+  auto root_page = root_page_guard.As<BPlusTreePage>();
+  ctx.root_page_id_ = root_page_guard.PageId();
+  // auto *root_page = reinterpret_cast<BPlusTreePage *>(bpm_->FetchPage(header_page->root_page_id_)->GetData());
 
-  std::deque<page_id_t> ids;
-
-  ids.push_back(header_page->root_page_id_);
+  ctx.read_set_.push_back(std::move(root_page_guard));
 
   while (true) {
     // std::cout << "enter" << std::endl;
     if (root_page->IsLeafPage()) {
       // std::cout << "leaf process" << std::endl;
-      auto *leaf = reinterpret_cast<LeafPage *>(root_page);
+      auto *leaf = reinterpret_cast<const LeafPage *>(root_page);
 
-      int index = Binary_Find(leaf, key);
+      int index = BinaryFind(leaf, key);
 
       if (index < 0 || comparator_(leaf->KeyAt(index), key) != 0) {
-        while (!ids.empty()) {
-          bpm_->UnpinPage(ids.back(), false);
-          ids.pop_back();
+        while (!ctx.read_set_.empty()) {
+          ctx.read_set_.back().SetDirty(false);
+          ctx.read_set_.back().Drop();
+          ctx.read_set_.pop_back();
         }
+        // while (!ids.empty()) {
+        //   bpm_->UnpinPage(ids.back(), false);
+        //   ids.pop_back();
+        // }
         // std::cout << "Can not Find" << std::endl;
         // std::cout << "size: " << leaf->GetSize() << "index: " << index << " not find: " << key << std::endl;
         return false;
@@ -128,25 +147,34 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
     }
 
     // std::cout << "internal process" << std::endl;
-    auto *internal = reinterpret_cast<InternalPage *>(root_page);
+    auto *internal = reinterpret_cast<const InternalPage *>(root_page);
 
     // std::cout << "start internal binary find" << std::endl;
-    int index = Binary_Find(internal, key);
+    int index = BinaryFind(internal, key);
 
     page_id_t child_id = internal->ValueAt(index);
 
-    ids.push_back(child_id);
-
+    // ids.push_back(child_id);
+    root_page_guard = bpm_->FetchPageRead(child_id);
+    root_page = root_page_guard.As<BPlusTreePage>();
+    ctx.read_set_.push_back(std::move(root_page_guard));
     // std::cout << "child_id: " << internal->ValueAt(index) << std::endl;
-    root_page = reinterpret_cast<BPlusTreePage *>(bpm_->FetchPage(child_id)->GetData());
+    // root_page = reinterpret_cast<BPlusTreePage *>(bpm_->FetchPage(child_id)->GetData());
   }
 
-  while (!ids.empty()) {
-    bpm_->UnpinPage(ids.back(), false);
-    ids.pop_back();
+  // while (!ids.empty()) {
+  //   bpm_->UnpinPage(ids.back(), false);
+  //   ids.pop_back();
+  // }
+  while (!ctx.read_set_.empty()) {
+    ctx.read_set_.back().SetDirty(false);
+    ctx.read_set_.back().Drop();
+    ctx.read_set_.pop_back();
   }
 
-  bpm_->UnpinPage(header_page_id_, false);
+  header_page_guard.SetDirty(false);
+  header_page_guard.Drop();
+  // bpm_->UnpinPage(header_page_id_, false);
 
   // std::cout << "Find it!" << std::endl;
   return true;
@@ -163,7 +191,7 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
  * keys return false, otherwise return true.
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::Split_Leaf(LeafPage *leaf, const KeyType &key, const ValueType &value, page_id_t *new_id)
+auto BPLUSTREE_TYPE::SplitLeaf(LeafPage *leaf, const KeyType &key, const ValueType &value, page_id_t *new_id)
     -> KeyType {
   bool put_left = false;
   int mid = leaf->GetMinSize();
@@ -186,7 +214,15 @@ auto BPLUSTREE_TYPE::Split_Leaf(LeafPage *leaf, const KeyType &key, const ValueT
   // auto *page = bpm_->NewPage(new_id);
   // std::cout << "new_page: " << page << std::endl;
   // if (page == nullptr) std::cout << "null_ptr" << std::endl;
-  auto *new_leaf = reinterpret_cast<LeafPage *>(bpm_->NewPage(new_id)->GetData());
+
+  auto new_leaf_basic_guard = bpm_->NewPageGuarded(new_id);
+  auto new_leaf = new_leaf_basic_guard.AsMut<LeafPage>();
+  // auto *new_leaf = reinterpret_cast<LeafPage *>(bpm_->NewPage(new_id)->GetData());
+  new_leaf_basic_guard.SetDirty(true);
+  new_leaf_basic_guard.Drop();
+
+  auto new_leaf_guard = bpm_->FetchPageWrite(*new_id);
+  new_leaf = new_leaf_guard.AsMut<LeafPage>();
   new_leaf->Init(leaf_max_size_);
   // std::cout << new_leaf << std::endl;
   // std::cout << *new_id << "是否为叶节点： " << new_leaf->IsLeafPage() << std::endl;
@@ -224,9 +260,11 @@ auto BPLUSTREE_TYPE::Split_Leaf(LeafPage *leaf, const KeyType &key, const ValueT
   // std::cout << "new leaf size: " << new_leaf->GetSize() << std::endl;
 
   auto put_in_leaf = leaf;
-  if (!put_left) put_in_leaf = new_leaf;
+  if (!put_left) {
+    put_in_leaf = new_leaf;
+  }
 
-  int idx = Binary_Find(put_in_leaf, key);
+  int idx = BinaryFind(put_in_leaf, key);
 
   for (int i = put_in_leaf->GetSize(); i > idx + 1; i--) {
     put_in_leaf->SetAt(i, put_in_leaf->KeyAt(i - 1), put_in_leaf->ValueAt(i - 1));
@@ -235,7 +273,7 @@ auto BPLUSTREE_TYPE::Split_Leaf(LeafPage *leaf, const KeyType &key, const ValueT
   put_in_leaf->IncreaseSize(1);
 
   // if (put_left) {
-  //   int idx = Binary_Find(leaf, key);
+  //   int idx = BinaryFind(leaf, key);
 
   //   for (int i = leaf->GetSize(); i > idx + 1; i--) {
   //     leaf->SetAt(i, leaf->KeyAt(i - 1), leaf->ValueAt(i - 1));
@@ -243,7 +281,7 @@ auto BPLUSTREE_TYPE::Split_Leaf(LeafPage *leaf, const KeyType &key, const ValueT
   //   leaf->SetAt(idx + 1, key, value);
   //   leaf->IncreaseSize(1);
   // } else {
-  //   int idx = Binary_Find(new_leaf, key);
+  //   int idx = BinaryFind(new_leaf, key);
 
   //   for (int i = new_leaf->GetSize(); i > idx + 1; i--) {
   //     new_leaf->SetAt(i, new_leaf->KeyAt(i - 1), new_leaf->ValueAt(i - 1));
@@ -255,13 +293,18 @@ auto BPLUSTREE_TYPE::Split_Leaf(LeafPage *leaf, const KeyType &key, const ValueT
   new_leaf->SetNextPageId(leaf->GetNextPageId());
   leaf->SetNextPageId(*new_id);
 
+  KeyType up_key = new_leaf->KeyAt(0);
+
+  new_leaf_guard.SetDirty(true);
+  new_leaf_guard.Drop();
+
   // std::cout << "right first key is: " << new_leaf->KeyAt(0) << std::endl;
-  return new_leaf->KeyAt(0);
+  return up_key;
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::Split_Internal(InternalPage *internal, const KeyType &key, page_id_t *new_id,
-                                    page_id_t new_child_id) -> KeyType {
+auto BPLUSTREE_TYPE::SplitInternal(InternalPage *internal, const KeyType &key, page_id_t *new_id,
+                                   page_id_t new_child_id) -> KeyType {
   bool put_left = false;
   int mid = internal->GetMinSize();
   KeyType mid_key = internal->KeyAt(mid);
@@ -294,7 +337,14 @@ auto BPLUSTREE_TYPE::Split_Internal(InternalPage *internal, const KeyType &key, 
     internal->IncreaseSize(-1);
   }
 
-  auto *new_internal = reinterpret_cast<InternalPage *>(bpm_->NewPage(new_id)->GetData());
+  auto new_internal_basic_guard = bpm_->NewPageGuarded(new_id);
+  auto new_internal = new_internal_basic_guard.AsMut<InternalPage>();
+  // auto *new_internal = reinterpret_cast<InternalPage *>(bpm_->NewPage(new_id)->GetData());
+  new_internal_basic_guard.SetDirty(true);
+  new_internal_basic_guard.Drop();
+
+  auto new_internal_guard = bpm_->FetchPageWrite(*new_id);
+  new_internal = new_internal_guard.AsMut<InternalPage>();
   new_internal->Init(internal_max_size_);
 
   // std::cout << "origin_internal_size: " << internal->GetSize() << std::endl;
@@ -334,7 +384,7 @@ auto BPLUSTREE_TYPE::Split_Internal(InternalPage *internal, const KeyType &key, 
     if (!put_left) {
       put_in_internal = new_internal;
     }
-    int idx = Binary_Find(put_in_internal, key);
+    int idx = BinaryFind(put_in_internal, key);
 
     for (int i = put_in_internal->GetSize(); i > idx + 1; i--) {
       put_in_internal->SetAt(i, put_in_internal->KeyAt(i - 1), put_in_internal->ValueAt(i - 1));
@@ -348,7 +398,7 @@ auto BPLUSTREE_TYPE::Split_Internal(InternalPage *internal, const KeyType &key, 
     }
     new_internal->SetAt(0, KeyType{}, up_key_id);
     // if (put_left) {
-    //   int idx = Binary_Find(internal, key);
+    //   int idx = BinaryFind(internal, key);
 
     //   for (int i = internal->GetSize(); i > idx + 1; i--) {
     //     internal->SetAt(i, internal->KeyAt(i - 1), internal->ValueAt(i - 1));
@@ -358,7 +408,7 @@ auto BPLUSTREE_TYPE::Split_Internal(InternalPage *internal, const KeyType &key, 
     //   internal->IncreaseSize(1);
 
     // } else {
-    //   int idx = Binary_Find(new_internal, key);
+    //   int idx = BinaryFind(new_internal, key);
 
     //   // std::cout << idx << std::endl;
 
@@ -394,6 +444,9 @@ auto BPLUSTREE_TYPE::Split_Internal(InternalPage *internal, const KeyType &key, 
   //   new_internal->SetAt(0, KeyType{}, up_key_id);
   // }
 
+  new_internal_guard.SetDirty(true);
+  new_internal_guard.Drop();
+
   return up_key;
 };
 
@@ -401,25 +454,34 @@ INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transaction *txn) -> bool {
   // Declaration of context instance.
   Context ctx;
-  (void)ctx;
   // printf("-----------------------------------------\n");
 
   // std::cout << "insert: " << key << std::endl;
-  auto *header_page = reinterpret_cast<BPlusTreeHeaderPage *>(bpm_->FetchPage(header_page_id_)->GetData());
+
+  // BasicPageGuard guard = bpm_->FetchPageBasic(header_page_id_);
+  // auto root_page = guard.AsMut<BPlusTreeHeaderPage>();
+
+  ctx.header_page_guard_ = bpm_->FetchPageWrite(header_page_id_);
+  auto header_page = ctx.header_page_guard_->AsMut<BPlusTreeHeaderPage>();
 
   if (header_page->root_page_id_ == INVALID_PAGE_ID) {
-    auto root_page = reinterpret_cast<LeafPage *>(bpm_->NewPage(&header_page->root_page_id_)->GetData());
-    root_page->Init(leaf_max_size_);
+    BasicPageGuard root_page_basic_guard = bpm_->NewPageGuarded(&header_page->root_page_id_);
+    auto root_page_basic = root_page_basic_guard.AsMut<LeafPage>();
+    // auto root_page = reinterpret_cast<LeafPage *>(bpm_->NewPage(&header_page->root_page_id_)->GetData());
+    root_page_basic->Init(leaf_max_size_);
+    root_page_basic_guard.SetDirty(true);
+    root_page_basic_guard.Drop();
   }
 
-  auto *root_page = reinterpret_cast<BPlusTreePage *>(bpm_->FetchPage(header_page->root_page_id_)->GetData());
-
-  std::deque<BPlusTreePage *> path;
-  std::deque<page_id_t> ids;
+  WritePageGuard root_page_guard = bpm_->FetchPageWrite(header_page->root_page_id_);
+  auto *root_page = root_page_guard.AsMut<BPlusTreePage>();
+  ctx.root_page_id_ = root_page_guard.PageId();
+  // auto root_page = reinterpret_cast<BPlusTreePage *>(bpm_->FetchPage(header_page->root_page_id_)->GetData());
 
   // std::cout << header_page->root_page_id_ << std::endl;
 
-  ids.push_back(header_page->root_page_id_);
+  // ids.push_back(header_page->root_page_id_);
+  ctx.write_set_.push_back(std::move(root_page_guard));
 
   while (true) {
     // std::cout << "enter" << std::endl;
@@ -428,18 +490,20 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
       // std::cout << "leaf process" << std::endl;
       auto *leaf = reinterpret_cast<LeafPage *>(root_page);
 
-      int index = Binary_Find(leaf, key);
+      int index = BinaryFind(leaf, key);
 
       // std::cout << "key: " << key << " index: " << index << std::endl;
 
-      if (index >= 0 && comparator_(leaf->KeyAt(index), key) == 0) return false;
+      if (index >= 0 && comparator_(leaf->KeyAt(index), key) == 0) {
+        return false;
+      }
 
       if (leaf->GetSize() == leaf->GetMaxSize()) {
         // printf("开始分裂\n");
         // //-------------------处理叶子节点的分裂------------------
         // printf("叶子分裂\n");
         page_id_t new_id;
-        KeyType up_key = Split_Leaf(leaf, key, value, &new_id);
+        KeyType up_key = SplitLeaf(leaf, key, value, &new_id);
         // auto *new_leaf = reinterpret_cast<BPlusTreePage *>(bpm_->FetchPage(new_id)->GetData());
         // std::cout << new_leaf << std::endl;
         // std::cout << "new_leaf is leaf: " << new_leaf->IsLeafPage() << std::endl;
@@ -449,24 +513,28 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
         // printf("new_leaf_id： ");
         // std::cout << new_id << std::endl;
 
-        bpm_->UnpinPage(ids.back(), true);
-        ids.pop_back();
+        ctx.write_set_.back().SetDirty(true);
+        ctx.write_set_.back().Drop();
+        ctx.write_set_.pop_back();
+        // bpm_->UnpinPage(ids.back(), true);
+        // ids.pop_back();
 
-        bpm_->UnpinPage(new_id, true);
+        // bpm_->UnpinPage(new_id, true);
 
-        //-------------------处理完叶子节点的分裂------------------
+        // -------------------处理完叶子节点的分裂------------------
 
         bool split_fin = false;
-        while (!path.empty()) {
-          auto parent = path.back();
-          path.pop_back();
+        while (!ctx.write_set_.empty()) {
+          auto internal_parent_guard = std::move(ctx.write_set_.back());
+          ctx.write_set_.pop_back();
 
-          auto internal_parent = reinterpret_cast<InternalPage *>(parent);
+          auto internal_parent = internal_parent_guard.AsMut<InternalPage>();
+          // auto internal_parent = reinterpret_cast<InternalPage *>(parent);
 
-          if (parent->GetSize() < parent->GetMaxSize()) {
+          if (internal_parent->GetSize() < internal_parent->GetMaxSize()) {
             // printf("internal分裂结束!\n");
             // std::cout << "final_up_key: " << up_key << std::endl;
-            int idx = Binary_Find(internal_parent, up_key);
+            int idx = BinaryFind(internal_parent, up_key);
             // std::cout << "最后分裂的idx: " << idx << std::endl;
 
             for (int i = internal_parent->GetSize(); i > idx + 1; i--) {
@@ -476,41 +544,57 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
             internal_parent->IncreaseSize(1);
             split_fin = true;
 
-            bpm_->UnpinPage(ids.back(), true);
-            ids.pop_back();
+            internal_parent_guard.SetDirty(true);
+            internal_parent_guard.Drop();
+            // bpm_->UnpinPage(ids.back(), true);
+            // ids.pop_back();
 
-            while (!ids.empty()) {
-              bpm_->UnpinPage(ids.back(), false);
-              ids.pop_back();
+            while (!ctx.write_set_.empty()) {
+              ctx.write_set_.back().SetDirty(false);
+              ctx.write_set_.back().Drop();
+              ctx.write_set_.pop_back();
             }
 
             break;
-          } else {
-            // printf("internal分裂!\n");
-            up_key = Split_Internal(internal_parent, up_key, &new_id, new_child_id);
-            // printf("internal分裂的up_key为： ");
-            // std::cout << up_key << std::endl;
-
-            bpm_->UnpinPage(ids.back(), true);
-            ids.pop_back();
-            bpm_->UnpinPage(new_id, true);
-
-            new_child_id = new_id;
           }
+          // printf("internal分裂!\n");
+          up_key = SplitInternal(internal_parent, up_key, &new_id, new_child_id);
+          // printf("internal分裂的up_key为： ");
+          // std::cout << up_key << std::endl;
+
+          internal_parent_guard.SetDirty(true);
+          internal_parent_guard.Drop();
+          // bpm_->UnpinPage(ids.back(), true);
+          // ids.pop_back();
+          // bpm_->UnpinPage(new_id, true);
+
+          new_child_id = new_id;
         }
 
         if (!split_fin) {
           // printf("根节点分裂!\n");
           page_id_t old_id = header_page->root_page_id_;
-          auto new_root_page = reinterpret_cast<InternalPage *>(bpm_->NewPage(&header_page->root_page_id_)->GetData());
-          // std::cout << "根的old id为：" << old_id << std::endl;
-          // std::cout << "根的new id为：" << header_page->root_page_id_ << std::endl;
+
+          auto new_root_page_basic_guard = bpm_->NewPageGuarded(&header_page->root_page_id_);
+          auto new_root_page = new_root_page_basic_guard.AsMut<InternalPage>();
+          ctx.root_page_id_ = new_root_page_basic_guard.PageId();
+          new_root_page_basic_guard.SetDirty(true);
+          new_root_page_basic_guard.Drop();
+
+          auto new_root_page_guard = bpm_->FetchPageWrite(header_page->root_page_id_);
+          new_root_page = new_root_page_guard.AsMut<InternalPage>();
+          new_root_page->Init(internal_max_size_);
+          // auto new_root_page = reinterpret_cast<InternalPage
+          // *>(bpm_->NewPage(&header_page->root_page_id_)->GetData()); std::cout << "根的old id为：" << old_id <<
+          // std::endl; std::cout << "根的new id为：" << header_page->root_page_id_ << std::endl;
           new_root_page->Init(internal_max_size_);
           // std::cout << "new_id:" << new_id << " old_id:" << old_id << std::endl;
           new_root_page->SetAt(1, up_key, new_id);
           new_root_page->SetAt(0, KeyType{}, old_id);
           new_root_page->SetSize(2);
-          bpm_->UnpinPage(header_page->root_page_id_, true);
+          new_root_page_guard.SetDirty(true);
+          new_root_page_guard.Drop();
+          // bpm_->UnpinPage(header_page->root_page_id_, true);
           // std::cout << new_root_page->ValueAt(0) << " | " << new_root_page->KeyAt(1) << " | "
           //           << new_root_page->ValueAt(1) << std::endl;
 
@@ -534,26 +618,33 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
 
       leaf->IncreaseSize(1);
 
-      bpm_->UnpinPage(ids.back(), true);
-      ids.pop_back();
+      ctx.write_set_.back().SetDirty(true);
+      ctx.write_set_.back().Drop();
+      ctx.write_set_.pop_back();
 
-      while (!ids.empty()) {
-        bpm_->UnpinPage(ids.back(), false);
-        ids.pop_back();
+      while (!ctx.write_set_.empty()) {
+        ctx.write_set_.back().SetDirty(false);
+        ctx.write_set_.back().Drop();
+        ctx.write_set_.pop_back();
       }
+      // bpm_->UnpinPage(ids.back(), true);
+      // ids.pop_back();
+
+      // while (!ids.empty()) {
+      //   bpm_->UnpinPage(ids.back(), false);
+      //   ids.pop_back();
+      // }
 
       // std::cout << "insert index: " << index << " key: " << key << " Size: " << leaf->GetSize() << std::endl;
 
       break;
     }
 
-    path.push_back(root_page);
-
     // std::cout << "internal process" << std::endl;
     auto *internal = reinterpret_cast<InternalPage *>(root_page);
 
     // std::cout << "start internal binary find" << std::endl;
-    int index = Binary_Find(internal, key);
+    int index = BinaryFind(internal, key);
 
     // std::cout << "find_index: " << index << std::endl;
 
@@ -561,12 +652,16 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
 
     // std::cout << "child_id: " << child_id << std::endl;
 
-    ids.push_back(child_id);
+    // ids.push_back(child_id);
 
-    root_page = reinterpret_cast<BPlusTreePage *>(bpm_->FetchPage(child_id)->GetData());
+    root_page_guard = bpm_->FetchPageWrite(child_id);
+    root_page = root_page_guard.AsMut<BPlusTreePage>();
+    ctx.write_set_.push_back(std::move(root_page_guard));
   }
 
-  bpm_->UnpinPage(header_page_id_, true);
+  ctx.header_page_guard_->SetDirty(true);
+  ctx.header_page_guard_->Drop();
+  // bpm_->UnpinPage(header_page_id_, true);
   // std::cout << "pool_size: " << bpm_->GetPoolSize() << " Usable_size: " << bpm_->Get_Usable_Size() << std::endl;
 
   // printf("Tree as Below-----------------------------------\n");
