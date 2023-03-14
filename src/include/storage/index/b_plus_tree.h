@@ -82,6 +82,9 @@ class BPlusTree {
   // Insert a key-value pair into this B+ tree.
   auto Insert(const KeyType &key, const ValueType &value, Transaction *txn = nullptr) -> bool;
 
+  void Remove_Res_Guards_Pop(std::deque<WritePageGuard> &guards, std::deque<int> &keys_index, const KeyType &origin_key,
+                             const KeyType &new_key);
+
   // Remove a key and its value from this B+ tree.
   void Remove(const KeyType &key, Transaction *txn);
 
