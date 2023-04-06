@@ -34,9 +34,9 @@ LRUKReplacer::~LRUKReplacer() {
 }
 
 auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
-  latch_.lock();
+  std::lock_guard<std::mutex> lock(latch_);
+
   if (curr_size_ == 0) {
-    latch_.unlock();
     return false;
   }
 
@@ -60,12 +60,12 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
     node_store_2_.erase(*frame_id);
   }
 
-  latch_.unlock();
   return true;
 }
 
 void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType access_type) {
-  latch_.lock();
+  std::lock_guard<std::mutex> lock(latch_);
+
   ++current_timestamp_;
   if (node_store_1_.count(frame_id) == 0U && node_store_2_.count(frame_id) == 0U &&
       inevictable_store_.count(frame_id) == 0U) {
@@ -76,7 +76,6 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType
   // 如果不可驱逐，更新history，直接返回即可
   if (inevictable_store_.count(frame_id) != 0U) {
     inevictable_store_[frame_id]->history_.push_back(current_timestamp_);
-    latch_.unlock();
     return;
   }
 
@@ -93,7 +92,6 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType
 
   // 小于k，说明原本已经按照{his[0],id}存在S1了，不用管，直接返回
   if (node->history_.size() < k_) {
-    latch_.unlock();
     return;
   }
 
@@ -114,22 +112,19 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType
     s2_.erase({node->history_[node->history_.size() - k_ - 1], frame_id});
     s2_.insert({node->history_[node->history_.size() - k_], frame_id});
   }
-
-  latch_.unlock();
 }
 
 void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
-  latch_.lock();
+  std::lock_guard<std::mutex> lock(latch_);
+
   if (node_store_1_.count(frame_id) == 0U && node_store_2_.count(frame_id) == 0U &&
       inevictable_store_.count(frame_id) == 0U) {
-    latch_.unlock();
     return;
   }
 
   if (set_evictable) {
     // 如果在s1_和s2_，说明本身就是可驱逐的，不用管
     if (node_store_1_.count(frame_id) != 0U || node_store_2_.count(frame_id) != 0U) {
-      latch_.unlock();
       return;
     }
 
@@ -149,7 +144,6 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
   } else {
     // 如果在inevictable_store_，说明本身就是不可驱逐的，不用管
     if (inevictable_store_.count(frame_id) != 0U) {
-      latch_.unlock();
       return;
     }
 
@@ -171,19 +165,17 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
       inevictable_store_[frame_id] = node;
     }
   }
-  latch_.unlock();
 }
 
 void LRUKReplacer::Remove(frame_id_t frame_id) {
-  latch_.lock();
+  std::lock_guard<std::mutex> lock(latch_);
+
   if (node_store_1_.count(frame_id) == 0 && node_store_2_.count(frame_id) == 0 &&
       inevictable_store_.count(frame_id) == 0) {
-    latch_.unlock();
     return;
   }
 
   if (inevictable_store_.count(frame_id) != 0U) {
-    latch_.unlock();
     return;
   }
 
@@ -202,9 +194,11 @@ void LRUKReplacer::Remove(frame_id_t frame_id) {
     s2_.erase({node->history_[node->history_.size() - k_], frame_id});
     delete node;
   }
-  latch_.unlock();
 }
 
-auto LRUKReplacer::Size() -> size_t { return curr_size_; }
+auto LRUKReplacer::Size() -> size_t {
+  std::lock_guard<std::mutex> lock(latch_);
+  return curr_size_;
+}
 
 }  // namespace bustub

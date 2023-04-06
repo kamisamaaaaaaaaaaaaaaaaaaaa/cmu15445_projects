@@ -38,6 +38,8 @@ class BasicPageGuard {
    */
   void Drop();
 
+  void SetDirty(bool is_dirty) { is_dirty_ = is_dirty; }
+
   /** TODO(P1): Add implementation
    *
    * @brief Move assignment for BasicPageGuard
@@ -133,6 +135,8 @@ class ReadPageGuard {
    */
   ~ReadPageGuard();
 
+  void SetDirty(bool is_dirty) { guard_.SetDirty(is_dirty); }
+
   auto PageId() -> page_id_t { return guard_.PageId(); }
 
   auto GetData() -> const char * { return guard_.GetData(); }
@@ -192,6 +196,8 @@ class WritePageGuard {
    * as if you were dropping the guard.
    */
   ~WritePageGuard();
+
+  void SetDirty(bool is_dirty) { guard_.SetDirty(is_dirty); }
 
   auto PageId() -> page_id_t { return guard_.PageId(); }
 

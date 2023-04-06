@@ -42,7 +42,7 @@ class Context {
  public:
   // When you insert into / remove from the B+ tree, store the write guard of header page here.
   // Remember to drop the header page guard and set it to nullopt when you want to unlock all.
-  std::optional<WritePageGuard> header_page_{std::nullopt};
+  std::optional<WritePageGuard> header_page_guard_{std::nullopt};
 
   // Save the root page id here so that it's easier to know if the current page is the root page.
   page_id_t root_page_id_{INVALID_PAGE_ID};
@@ -72,11 +72,25 @@ class BPlusTree {
   // Returns true if this B+ tree has no keys and values.
   auto IsEmpty() const -> bool;
 
+  auto BinaryFind(const LeafPage *leaf_page, const KeyType &key) -> int;
+  auto BinaryFind(const InternalPage *internal_page, const KeyType &key) -> int;
+
+  auto SplitLeaf(LeafPage *leaf, const KeyType &key, const ValueType &value, page_id_t *new_id) -> KeyType;
+
+  auto SplitInternal(InternalPage *internal, const KeyType &key, page_id_t *new_id, page_id_t new_child_id) -> KeyType;
+
   // Insert a key-value pair into this B+ tree.
   auto Insert(const KeyType &key, const ValueType &value, Transaction *txn = nullptr) -> bool;
 
+  auto OptimalInsert(const KeyType &key, const ValueType &value, Transaction *txn = nullptr) -> int;
+
+  void RemoveResGuardsPop(std::deque<WritePageGuard> &guards, std::deque<int> &keys_index, const KeyType &origin_key,
+                          const KeyType &new_key);
+
   // Remove a key and its value from this B+ tree.
   void Remove(const KeyType &key, Transaction *txn);
+
+  auto OptimalRemove(const KeyType &key, Transaction *txn = nullptr) -> bool;
 
   // Return the value associated with a given key
   auto GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *txn = nullptr) -> bool;

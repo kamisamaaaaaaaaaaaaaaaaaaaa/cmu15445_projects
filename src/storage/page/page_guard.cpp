@@ -16,6 +16,7 @@ BasicPageGuard::BasicPageGuard(BasicPageGuard &&that) noexcept {
 
 // 将page_guard内容清空，并且让其所持有的page unpin
 void BasicPageGuard::Drop() {
+  // printf("basic_drop\n");
   if (page_ == nullptr) {
     return;
   }
@@ -45,12 +46,16 @@ auto BasicPageGuard::operator=(BasicPageGuard &&that) noexcept -> BasicPageGuard
   return *this;
 }
 
-BasicPageGuard::~BasicPageGuard() { Drop(); };  // NOLINT
+BasicPageGuard::~BasicPageGuard() {
+  // printf("basic_析构\n");
+  Drop();
+};  // NOLINT
 
 ReadPageGuard::ReadPageGuard(ReadPageGuard &&that) noexcept { guard_ = std::move(that.guard_); };
 
 // 由于ReadPageGuard持有的page有锁，所以对方的page拿过来替换前，记得先把原来page的锁打开，否则该page会一直持有锁
 auto ReadPageGuard::operator=(ReadPageGuard &&that) noexcept -> ReadPageGuard & {
+  // printf("read =\n");
   if (this != &that) {
     if (guard_.page_ != nullptr) {
       guard_.page_->RUnlatch();
@@ -61,6 +66,7 @@ auto ReadPageGuard::operator=(ReadPageGuard &&that) noexcept -> ReadPageGuard & 
 }
 
 void ReadPageGuard::Drop() {
+  // printf("read drop\n");
   if (guard_.page_ != nullptr) {
     guard_.page_->RUnlatch();
   }
@@ -68,6 +74,7 @@ void ReadPageGuard::Drop() {
 }
 
 ReadPageGuard::~ReadPageGuard() {
+  // printf("read析构\n");
   if (guard_.page_ != nullptr) {
     Drop();
   }
