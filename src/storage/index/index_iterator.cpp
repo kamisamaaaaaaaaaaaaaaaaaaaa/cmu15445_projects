@@ -23,11 +23,11 @@ INDEXITERATOR_TYPE::IndexIterator(BufferPoolManager *buffer_pool_manager, page_i
   if (cur != -1) {
     auto guard = bpm_->FetchPageRead(cur);
     auto leaf = guard.As<LeafPage>();
-    item = {leaf->KeyAt(index), leaf->ValueAt(index)};
+    item_ = {leaf->KeyAt(index), leaf->ValueAt(index)};
     guard.SetDirty(false);
     guard.Drop();
   }
-};
+}
 
 INDEX_TEMPLATE_ARGUMENTS
 INDEXITERATOR_TYPE::~IndexIterator() = default;
@@ -35,7 +35,7 @@ INDEXITERATOR_TYPE::~IndexIterator() = default;
 INDEX_TEMPLATE_ARGUMENTS
 auto INDEXITERATOR_TYPE::IsEnd() -> bool { return cur_ == -1; }
 
-INDEX_TEMPLATE_ARGUMENTS auto INDEXITERATOR_TYPE::operator*() -> const MappingType & { return item; }
+INDEX_TEMPLATE_ARGUMENTS auto INDEXITERATOR_TYPE::operator*() -> const MappingType & { return item_; }
 
 INDEX_TEMPLATE_ARGUMENTS
 auto INDEXITERATOR_TYPE::operator++() -> INDEXITERATOR_TYPE & {
@@ -53,14 +53,16 @@ auto INDEXITERATOR_TYPE::operator++() -> INDEXITERATOR_TYPE & {
       cur_ = next_id;
       guard = bpm_->FetchPageRead(cur_);
       leaf = guard.As<LeafPage>();
-      item = {leaf->KeyAt(index_), leaf->ValueAt(index_)};
+      item_ = {leaf->KeyAt(index_), leaf->ValueAt(index_)};
+      guard.SetDirty(false);
+      guard.Drop();
     } else {
       cur_ = -1;
       index_ = -1;
-      item = {};
+      item_ = {};
     }
   } else {
-    item = {leaf->KeyAt(index_), leaf->ValueAt(index_)};
+    item_ = {leaf->KeyAt(index_), leaf->ValueAt(index_)};
     guard.SetDirty(false);
     guard.Drop();
   }

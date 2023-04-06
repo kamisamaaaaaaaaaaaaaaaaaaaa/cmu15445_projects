@@ -81,12 +81,12 @@ void BufferPoolManager::PinPage(page_id_t page_id) {
 
 // 生成一个新的page，对应的内容存在pages_[frame_id]，page里没有数据
 auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
-  latch_.lock();
+  std::lock_guard<std::mutex> lock(latch_);
+
   // 如果没有空闲的frame或者可驱逐的frame，则返回nullptr
   if (free_list_.empty() && replacer_->Size() == 0) {
-    std::cout << "has_fulled" << std::endl;
-    page_id = nullptr;
-    latch_.unlock();
+    // std::cout << "has_fulled" << std::endl;
+    *page_id = INVALID_PAGE_ID;
     return nullptr;
   }
 
@@ -107,19 +107,17 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
   // 锁定该page
   PinPage(*page_id);
 
-  latch_.unlock();
-
   return page;
 }
 
 // 根据page_id获取该page
 auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType access_type) -> Page * {
-  latch_.lock();
+  std::lock_guard<std::mutex> lock(latch_);
+
   // 若不存在的话，则创造一个该page_id对应的空白page，并且据page_id从disk中把数据读到page里
   if (page_table_.count(page_id) == 0) {
     // ps:当没有可用frames时，直接返回nullptr（此时需要从disk直接读取）
     if (free_list_.empty() && replacer_->Size() == 0) {
-      latch_.unlock();
       return nullptr;
     }
 
@@ -138,24 +136,23 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType
     // 再把数据从disk读到空白page里
     disk_manager_->ReadPage(page_id, page->GetData());
 
-    latch_.unlock();
-
     return page;
   }
 
   // 如果有，则锁定该page，然后返回即可
   PinPage(page_id);
 
-  latch_.unlock();
+  // printf("page_id: %d page_table: %d address: %p pool_size: %zu \n", page_id, page_table_[page_id],
+  //  pages_ + page_table_[page_id], pool_size_);
 
   return pages_ + page_table_[page_id];
 }
 
 auto BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty, [[maybe_unused]] AccessType access_type) -> bool {
-  latch_.lock();
+  std::lock_guard<std::mutex> lock(latch_);
+
   // std::cout << "Unpined" << std::endl;
   if (page_table_.count(page_id) == 0) {
-    latch_.unlock();
     return false;
   }
 
@@ -164,7 +161,6 @@ auto BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty, [[maybe_unus
   // std::cout << "Unpin_address:" << page << std::endl;
 
   if (page->GetPinCount() == 0) {
-    latch_.unlock();
     return false;
   }
 
@@ -178,8 +174,6 @@ auto BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty, [[maybe_unus
 
   // 只要被任何一个人改过，则is_dirty就为真，表示和disk里的内容不一致，因此这里是或的关系
   page->is_dirty_ |= is_dirty;
-
-  latch_.unlock();
 
   return true;
 }
@@ -207,15 +201,14 @@ void BufferPoolManager::FlushAllPages() {
 }
 
 auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool {
-  latch_.lock();
+  std::lock_guard<std::mutex> lock(latch_);
+
   if (page_table_.count(page_id) == 0U) {
-    latch_.unlock();
     return true;
   }
 
   Page *page = pages_ + page_table_[page_id];
   if (page->GetPinCount() > 0) {
-    latch_.unlock();
     return false;
   }
 
@@ -228,7 +221,6 @@ auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool {
 
   DeallocatePage(page_id);
 
-  latch_.unlock();
   return true;
 }
 
@@ -249,7 +241,11 @@ auto BufferPoolManager::FetchPageRead(page_id_t page_id) -> ReadPageGuard {
   if (page == nullptr) {
     return ReadPageGuard{this, nullptr};
   }
+  // std::thread::id this_thread_id = std::this_thread::get_id();
+  // std::cout << this_thread_id << std::endl;
+  // printf("Try FR page_id %d\n", page->GetPageId());
   page->RLatch();
+  // printf("FR page_id %d\n", page->GetPageId());
   return ReadPageGuard{this, page};
 }
 
@@ -259,7 +255,11 @@ auto BufferPoolManager::FetchPageWrite(page_id_t page_id) -> WritePageGuard {
   if (page == nullptr) {
     return WritePageGuard{this, nullptr};
   }
+  // auto this_thread_id = std::this_thread::get_id();
+  // std::cout << this_thread_id << std::endl;
+  // printf("Try FW page_id %d\n", page->GetPageId());
   page->WLatch();
+  // printf("FW page_id %d\n", page->GetPageId());
   return WritePageGuard{this, page};
 }
 

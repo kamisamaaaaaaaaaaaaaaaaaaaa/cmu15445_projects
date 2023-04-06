@@ -82,11 +82,15 @@ class BPlusTree {
   // Insert a key-value pair into this B+ tree.
   auto Insert(const KeyType &key, const ValueType &value, Transaction *txn = nullptr) -> bool;
 
-  void Remove_Res_Guards_Pop(std::deque<WritePageGuard> &guards, std::deque<int> &keys_index, const KeyType &origin_key,
-                             const KeyType &new_key);
+  auto OptimalInsert(const KeyType &key, const ValueType &value, Transaction *txn = nullptr) -> int;
+
+  void RemoveResGuardsPop(std::deque<WritePageGuard> &guards, std::deque<int> &keys_index, const KeyType &origin_key,
+                          const KeyType &new_key);
 
   // Remove a key and its value from this B+ tree.
   void Remove(const KeyType &key, Transaction *txn);
+
+  auto OptimalRemove(const KeyType &key, Transaction *txn = nullptr) -> bool;
 
   // Return the value associated with a given key
   auto GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *txn = nullptr) -> bool;

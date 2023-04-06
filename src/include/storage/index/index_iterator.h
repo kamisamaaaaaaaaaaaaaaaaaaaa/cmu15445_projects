@@ -43,7 +43,7 @@ class IndexIterator {
   BufferPoolManager *bpm_;
   page_id_t cur_;
   int index_;
-  MappingType item;
+  MappingType item_;
   // add your own private member variables here
 };
 
