@@ -15,9 +15,7 @@
 #include <limits>
 #include <list>
 #include <mutex>  // NOLINT
-#include <set>
 #include <unordered_map>
-#include <utility>
 #include <vector>
 
 #include "common/config.h"
@@ -28,10 +26,20 @@ namespace bustub {
 enum class AccessType { Unknown = 0, Get, Scan };
 
 class LRUKNode {
+ public:
   /** History of last seen K timestamps of this page. Least recent timestamp stored in front. */
   // Remove maybe_unused if you start using them. Feel free to change the member variables as you want.
- public:
-  std::vector<size_t> history_;
+  std::list<size_t> history_;
+  frame_id_t fid_;
+  bool is_evictable_;
+  LRUKNode *left_;
+  LRUKNode *right_;
+
+  LRUKNode() {
+    left_ = nullptr;
+    right_ = nullptr;
+    is_evictable_ = false;
+  }
 };
 
 /**
@@ -145,31 +153,28 @@ class LRUKReplacer {
    */
   auto Size() -> size_t;
 
+  void RemoveNode(LRUKNode *node);
+
+  void InsertNode(LRUKNode *node1, LRUKNode *node2);
+
  private:
   // TODO(student): implement me! You can replace these member variables as you like.
   // Remove maybe_unused if you start using them.
-
-  // S1中，id->节点
   std::unordered_map<frame_id_t, LRUKNode *> node_store_1_;
-  // S2中，id->节点
   std::unordered_map<frame_id_t, LRUKNode *> node_store_2_;
-
-  // S1用来存INF的节点，S2用来存非INF的节点，里面都是可驱逐的
-  // S1存{his[0],id}，S2存{倒数k的his,id}
-  std::set<std::pair<size_t, frame_id_t>> s1_;
-  std::set<std::pair<size_t, frame_id_t>> s2_;
-
-  // 不可驱逐的的所有节点
-  std::unordered_map<frame_id_t, LRUKNode *> inevictable_store_;
-
-  // 时间戳
   size_t current_timestamp_{0};
-
-  // 目前可驱逐的总点数
   size_t curr_size_{0};
-  [[maybe_unused]] size_t replacer_size_;
+  size_t replacer_size_;
   size_t k_;
   std::mutex latch_;
+
+  LRUKNode *head1_;
+  LRUKNode *tail1_;
+  int size1_;
+
+  LRUKNode *head2_;
+  LRUKNode *tail2_;
+  int size2_;
 };
 
 }  // namespace bustub
