@@ -60,6 +60,8 @@ class UpdatePlanNode : public AbstractPlanNode {
   /** The new expression at each column */
   std::vector<AbstractExpressionRef> target_expressions_;
 
+  // auto PlanNodeToString() const -> std::string override;
+
  protected:
   auto PlanNodeToString() const -> std::string override;
 };
