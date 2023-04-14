@@ -32,10 +32,9 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     return false;
   }
 
-  if (iter->IsAllocated()) {
-    (*tuple) = *(iter);
-    (*rid) = tuple->GetRid();
-  }
+  (*tuple) = *iter;
+  (*rid) = tuple->GetRid();
+
   iter++;
   return true;
 }
