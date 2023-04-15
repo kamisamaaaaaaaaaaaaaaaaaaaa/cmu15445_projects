@@ -43,7 +43,9 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     }
 
     for (auto &x : index_infos_) {
-      x->index_->DeleteEntry(*tuple, *rid, exec_ctx_->GetTransaction());
+      Tuple partial_tuple =
+          tuple->KeyFromTuple(table_info_->schema_, *(x->index_->GetKeySchema()), x->index_->GetKeyAttrs());
+      x->index_->DeleteEntry(partial_tuple, *rid, exec_ctx_->GetTransaction());
     }
   }
 
