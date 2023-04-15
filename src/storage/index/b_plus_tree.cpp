@@ -1201,6 +1201,12 @@ auto BPLUSTREE_TYPE::Begin() -> INDEXITERATOR_TYPE {
   auto header_page_guard = bpm_->FetchPageRead(header_page_id_);
   auto header_page = header_page_guard.As<BPlusTreeHeaderPage>();
 
+  if (header_page->root_page_id_ == INVALID_PAGE_ID) {
+    header_page_guard.SetDirty(false);
+    header_page_guard.Drop();
+    return End();
+  }
+
   auto root_page_guard = bpm_->FetchPageRead(header_page->root_page_id_);
   auto root_page = root_page_guard.As<BPlusTreePage>();
 
@@ -1244,6 +1250,16 @@ auto BPLUSTREE_TYPE::Begin() -> INDEXITERATOR_TYPE {
     }
   }
 
+  auto guard = bpm_->FetchPageRead(begin_leaf);
+  auto leaf = guard.As<LeafPage>();
+  if (leaf->GetSize() == 0) {
+    guard.SetDirty(false);
+    guard.Drop();
+    return End();
+  }
+
+  guard.SetDirty(false);
+  guard.Drop();
   return INDEXITERATOR_TYPE(bpm_, begin_leaf, 0);
 }
 
@@ -1257,6 +1273,12 @@ auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE {
   Context ctx;
   auto header_page_guard = bpm_->FetchPageRead(header_page_id_);
   auto header_page = header_page_guard.As<BPlusTreeHeaderPage>();
+
+  if (header_page->root_page_id_ == INVALID_PAGE_ID) {
+    header_page_guard.SetDirty(false);
+    header_page_guard.Drop();
+    return End();
+  }
 
   auto root_page_guard = bpm_->FetchPageRead(header_page->root_page_id_);
   auto root_page = root_page_guard.As<BPlusTreePage>();
@@ -1323,6 +1345,17 @@ auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE {
       ctx.read_set_.emplace_back(std::move(root_page_guard));
     }
   }
+
+  auto guard = bpm_->FetchPageRead(begin_leaf);
+  auto leaf = guard.As<LeafPage>();
+  if (leaf->GetSize() == 0) {
+    guard.SetDirty(false);
+    guard.Drop();
+    return End();
+  }
+
+  guard.SetDirty(false);
+  guard.Drop();
 
   return INDEXITERATOR_TYPE(bpm_, begin_leaf, index);
 }

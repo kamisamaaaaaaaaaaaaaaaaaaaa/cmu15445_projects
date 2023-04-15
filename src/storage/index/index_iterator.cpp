@@ -44,7 +44,7 @@ auto INDEXITERATOR_TYPE::operator++() -> INDEXITERATOR_TYPE & {
   auto guard = bpm_->FetchPageRead(cur_);
   auto leaf = guard.As<LeafPage>();
 
-  if (index_ == leaf->GetSize()) {
+  if (index_ >= leaf->GetSize()) {
     auto next_id = leaf->GetNextPageId();
     guard.SetDirty(false);
     guard.Drop();

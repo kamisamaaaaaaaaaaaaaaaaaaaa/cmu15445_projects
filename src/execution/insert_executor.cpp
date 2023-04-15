@@ -42,7 +42,9 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       nums++;
     }
     for (auto &x : index_infos_) {
-      x->index_->InsertEntry(*tuple, *rid, exec_ctx_->GetTransaction());
+      Tuple partial_tuple =
+          tuple->KeyFromTuple(table_info_->schema_, *(x->index_->GetKeySchema()), x->index_->GetKeyAttrs());
+      x->index_->InsertEntry(partial_tuple, *rid, exec_ctx_->GetTransaction());
     }
   }
 
