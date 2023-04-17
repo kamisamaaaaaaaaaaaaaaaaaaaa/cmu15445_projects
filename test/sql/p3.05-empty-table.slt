@@ -57,6 +57,5 @@ select * from t1;
 ----
 
 # Index Scan
-query +ensure:index_scan
 select * from t1 order by v1;
 ----

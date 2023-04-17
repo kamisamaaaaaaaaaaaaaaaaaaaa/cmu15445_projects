@@ -49,6 +49,8 @@ class NestedLoopJoinExecutor : public AbstractExecutor {
    */
   auto Next(Tuple *tuple, RID *rid) -> bool override;
 
+  void GetOutputTuple(Tuple *tuple, bool is_match);
+
   /** @return The output schema for the insert */
   auto GetOutputSchema() const -> const Schema & override { return plan_->OutputSchema(); };
 

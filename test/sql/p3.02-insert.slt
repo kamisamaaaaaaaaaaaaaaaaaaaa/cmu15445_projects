@@ -39,8 +39,6 @@ select * from t1;
 3 🥰🥰🥰🥰 13
 4 🥰🥰🥰🥰🥰 14
 
-
-
 # Create another table, insert with select *
 statement ok
 create table t2(v1 int, v2 varchar(128), v3 int);
