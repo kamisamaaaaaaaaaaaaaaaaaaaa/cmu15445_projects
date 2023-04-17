@@ -38,88 +38,69 @@ void NestedLoopJoinExecutor::Init() {
   left_executor_->Init();
   right_executor_->Init();
 
-  while (left_executor_->Next(&tuple, &rid)) {
-    left_tuples_.push_back(tuple);
-  }
-
   while (right_executor_->Next(&tuple, &rid)) {
     right_tuples_.push_back(tuple);
   }
 
-  left_ptr = 0;
+  left_executor_->Next(&left_tuple, &rid);
   right_ptr = 0;
   match = false;
 }
 
 auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
-  while (left_ptr < left_tuples_.size()) {
-    if (right_ptr == right_tuples_.size()) {
-      ++left_ptr;
-      right_ptr = 0;
-      match = false;
+  while (true) {
+    while (right_ptr < right_tuples_.size()) {
+      auto value = plan_->Predicate().EvaluateJoin(&left_tuple, plan_->GetLeftPlan()->OutputSchema(),
+                                                   &right_tuples_[right_ptr], plan_->GetRightPlan()->OutputSchema());
+      if (value.CompareEquals(ValueFactory::GetBooleanValue(true)) == CmpBool::CmpTrue) {
+        std::vector<Value> values;
+
+        auto left_col_cnts = plan_->GetLeftPlan()->OutputSchema().GetColumnCount();
+        auto right_col_cnts = plan_->GetRightPlan()->OutputSchema().GetColumnCount();
+
+        for (uint32_t i = 0; i < left_col_cnts; i++) {
+          values.push_back(left_tuple.GetValue(&plan_->GetLeftPlan()->OutputSchema(), i));
+        }
+
+        for (uint32_t i = 0; i < right_col_cnts; i++) {
+          values.push_back(right_tuples_[right_ptr].GetValue(&plan_->GetRightPlan()->OutputSchema(), i));
+        }
+
+        *tuple = Tuple(values, &GetOutputSchema());
+
+        match = true;
+
+        ++right_ptr;
+
+        return true;
+      } else {
+        ++right_ptr;
+      }
     }
 
-    if (left_ptr == left_tuples_.size()) {
-      return false;
-    }
-
-    auto value = plan_->Predicate().EvaluateJoin(&left_tuples_[left_ptr], plan_->GetLeftPlan()->OutputSchema(),
-                                                 &right_tuples_[right_ptr], plan_->GetRightPlan()->OutputSchema());
-    if (value.CompareEquals(ValueFactory::GetBooleanValue(true)) == CmpBool::CmpTrue) {
+    if (!match && plan_->GetJoinType() == JoinType::LEFT) {
       std::vector<Value> values;
-
       auto left_col_cnts = plan_->GetLeftPlan()->OutputSchema().GetColumnCount();
       auto right_col_cnts = plan_->GetRightPlan()->OutputSchema().GetColumnCount();
-
       for (uint32_t i = 0; i < left_col_cnts; i++) {
-        values.push_back(left_tuples_[left_ptr].GetValue(&plan_->GetLeftPlan()->OutputSchema(), i));
+        values.push_back(left_tuple.GetValue(&plan_->GetLeftPlan()->OutputSchema(), i));
       }
-
       for (uint32_t i = 0; i < right_col_cnts; i++) {
-        values.push_back(right_tuples_[right_ptr].GetValue(&plan_->GetRightPlan()->OutputSchema(), i));
+        values.push_back(ValueFactory::GetNullValueByType(TypeId::INTEGER));
       }
 
       *tuple = Tuple(values, &GetOutputSchema());
 
       match = true;
 
-      ++right_ptr;
-      if (right_ptr == right_tuples_.size()) {
-        ++left_ptr;
-        right_ptr = 0;
-
-        match = false;
-      }
-      break;
-    } else {
-      ++right_ptr;
-      if (right_ptr == right_tuples_.size()) {
-        if (!match && plan_->GetJoinType() == JoinType::LEFT) {
-          std::vector<Value> values;
-          auto left_col_cnts = plan_->GetLeftPlan()->OutputSchema().GetColumnCount();
-          auto right_col_cnts = plan_->GetRightPlan()->OutputSchema().GetColumnCount();
-          for (uint32_t i = 0; i < left_col_cnts; i++) {
-            values.push_back(left_tuples_[left_ptr].GetValue(&plan_->GetLeftPlan()->OutputSchema(), i));
-          }
-          for (uint32_t i = 0; i < right_col_cnts; i++) {
-            values.push_back(ValueFactory::GetNullValueByType(TypeId::INTEGER));
-          }
-
-          *tuple = Tuple(values, &GetOutputSchema());
-
-          break;
-        }
-
-        ++left_ptr;
-        right_ptr = 0;
-
-        match = false;
-      }
+      return true;
     }
-  }
 
-  if (left_ptr == left_tuples_.size()) {
-    return false;
+    if (!left_executor_->Next(&left_tuple, rid)) {
+      return false;
+    }
+    right_ptr = 0;
+    match = false;
   }
 
   return true;

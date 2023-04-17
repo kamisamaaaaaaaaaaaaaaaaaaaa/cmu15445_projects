@@ -57,10 +57,11 @@ class NestedLoopJoinExecutor : public AbstractExecutor {
   const NestedLoopJoinPlanNode *plan_;
   std::unique_ptr<AbstractExecutor> left_executor_;
   std::unique_ptr<AbstractExecutor> right_executor_;
-  std::vector<Tuple> left_tuples_;
+
   std::vector<Tuple> right_tuples_;
-  unsigned long left_ptr;
   unsigned long right_ptr;
+
+  Tuple left_tuple;
   bool match;
 };
 
