@@ -43,9 +43,9 @@ typedef int64_t PGTimeOffset;
 typedef int32_t pg_fsec_t; /* fractional seconds (in microseconds) */
 
 typedef struct {
-	PGTimeOffset time; /* all time units other than days, months and
-								 * years */
-	int32_t day;       /* days, after time for alignment */
-	int32_t month;     /* months and years, after time for alignment */
+  PGTimeOffset time; /* all time units other than days, months and
+                      * years */
+  int32_t day;       /* days, after time for alignment */
+  int32_t month;     /* months and years, after time for alignment */
 } PGInterval;
-}
+}  // namespace duckdb_libpgquery

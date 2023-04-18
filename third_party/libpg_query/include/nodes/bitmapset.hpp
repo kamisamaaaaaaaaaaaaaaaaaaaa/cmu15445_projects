@@ -38,23 +38,23 @@ typedef uint32_t bitmapword;      /* must be an unsigned type */
 typedef int32_t signedbitmapword; /* must be the matching signed type */
 
 typedef struct PGBitmapset {
-	int nwords;          /* number of words in array */
-	bitmapword words[1]; /* really [nwords] */
+  int nwords;          /* number of words in array */
+  bitmapword words[1]; /* really [nwords] */
 } PGBitmapset;
 
 /* result of bms_subset_compare */
 typedef enum PG_BMS_Comparison {
-	PG_BMS_EQUAL,   /* sets are equal */
-	PG_BMS_SUBSET1, /* first set is a subset of the second */
-	PG_BMS_SUBSET2, /* second set is a subset of the first */
-	BMS_DIFFERENT   /* neither set is a subset of the other */
+  PG_BMS_EQUAL,   /* sets are equal */
+  PG_BMS_SUBSET1, /* first set is a subset of the second */
+  PG_BMS_SUBSET2, /* second set is a subset of the first */
+  BMS_DIFFERENT   /* neither set is a subset of the other */
 } PG_BMS_Comparison;
 
 /* result of bms_membership */
 typedef enum PG_BMS_Membership {
-	PG_BMS_EMPTY_SET, /* 0 members */
-	PG_BMS_SINGLETON, /* 1 member */
-	BMS_MULTIPLE      /* >1 member */
+  PG_BMS_EMPTY_SET, /* 0 members */
+  PG_BMS_SINGLETON, /* 1 member */
+  BMS_MULTIPLE      /* >1 member */
 } PG_BMS_Membership;
 
 /*
@@ -99,4 +99,4 @@ int bms_next_member(const PGBitmapset *a, int prevbit);
 /* support for hashtables using Bitmapsets as keys: */
 uint32_t bms_hash_value(const PGBitmapset *a);
 
-}
+}  // namespace duckdb_libpgquery

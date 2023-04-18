@@ -14,16 +14,16 @@
  */
 #pragma once
 
+#include <vector>
 #include "nodes/parsenodes.hpp"
 #include "pg_simplified_token.hpp"
-#include <vector>
 
 namespace duckdb_libpgquery {
 
 typedef enum PGBackslashQuoteType {
-	PG_BACKSLASH_QUOTE_OFF,
-	PG_BACKSLASH_QUOTE_ON,
-	PG_BACKSLASH_QUOTE_SAFE_ENCODING
+  PG_BACKSLASH_QUOTE_OFF,
+  PG_BACKSLASH_QUOTE_ON,
+  PG_BACKSLASH_QUOTE_SAFE_ENCODING
 } PGBackslashQuoteType;
 
 /* Primary entry point for the raw parsing functions */
@@ -38,4 +38,4 @@ std::vector<PGSimplifiedToken> tokenize(const char *str);
 PGList *SystemFuncName(const char *name);
 PGTypeName *SystemTypeName(const char *name);
 
-}
+}  // namespace duckdb_libpgquery

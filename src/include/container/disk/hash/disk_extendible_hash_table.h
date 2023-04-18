@@ -54,8 +54,6 @@ class DiskExtendibleHashTable {
    */
   auto Insert(Transaction *transaction, const KeyType &key, const ValueType &value) -> bool;
 
-  auto Getithdigit(uint32_t n, uint32_t k) -> uint32_t;
-
   /**
    * Deletes the associated value for the given key.
    *

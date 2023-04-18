@@ -22,9 +22,9 @@
  */
 #include "pg_functions.hpp"
 
-#include "nodes/parsenodes.hpp"
-#include <string>
 #include <cstring>
+#include <string>
+#include "nodes/parsenodes.hpp"
 
 namespace duckdb_libpgquery {
 
@@ -32,11 +32,11 @@ namespace duckdb_libpgquery {
  *	makeInteger
  */
 PGValue *makeInteger(long i) {
-	PGValue *v = makeNode(PGValue);
+  PGValue *v = makeNode(PGValue);
 
-	v->type = T_PGInteger;
-	v->val.ival = i;
-	return v;
+  v->type = T_PGInteger;
+  v->val.ival = i;
+  return v;
 }
 
 /*
@@ -45,11 +45,11 @@ PGValue *makeInteger(long i) {
  * Caller is responsible for passing a palloc'd string.
  */
 PGValue *makeFloat(char *numericStr) {
-	PGValue *v = makeNode(PGValue);
+  PGValue *v = makeNode(PGValue);
 
-	v->type = T_PGFloat;
-	v->val.str = numericStr;
-	return v;
+  v->type = T_PGFloat;
+  v->val.str = numericStr;
+  return v;
 }
 
 /*
@@ -58,11 +58,11 @@ PGValue *makeFloat(char *numericStr) {
  * Caller is responsible for passing a palloc'd string.
  */
 PGValue *makeString(const char *str) {
-	PGValue *v = makeNode(PGValue);
+  PGValue *v = makeNode(PGValue);
 
-	v->type = T_PGString;
-	v->val.str = (char *)str;
-	return v;
+  v->type = T_PGString;
+  v->val.str = (char *)str;
+  return v;
 }
 
 /*
@@ -71,4 +71,4 @@ PGValue *makeString(const char *str) {
  * Caller is responsible for passing a palloc'd string.
  */
 
-}
+}  // namespace duckdb_libpgquery
