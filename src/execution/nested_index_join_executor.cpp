@@ -29,7 +29,7 @@ NestIndexJoinExecutor::NestIndexJoinExecutor(ExecutorContext *exec_ctx, const Ne
 void NestIndexJoinExecutor::Init() {
   auto catalog = exec_ctx_->GetCatalog();
   RightTableInfo = catalog->GetTable(plan_->GetInnerTableOid());
-  IndexInfo = catalog->GetIndex(plan_->GetIndexOid());
+  indexInfo = catalog->GetIndex(plan_->GetIndexOid());
   left_executor->Init();
   ptr = 0;
 }
@@ -72,11 +72,11 @@ auto NestIndexJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     // 获取左tuple用于在右表对应的index树里用于匹配的key值
     auto value = plan_->KeyPredicate()->Evaluate(&left_tuple, left_executor->GetOutputSchema());
     std::vector<Value> values{value};
-    Tuple tuple_ = Tuple(values, IndexInfo->index_->GetKeySchema());
+    Tuple tuple_ = Tuple(values, indexInfo->index_->GetKeySchema());
 
     // 在index树里匹配
     std::vector<RID> result;
-    IndexInfo->index_->ScanKey(tuple_, &result, exec_ctx_->GetTransaction());
+    indexInfo->index_->ScanKey(tuple_, &result, exec_ctx_->GetTransaction());
 
     if (result.size() == 0) {
       // 如果匹配失败，则填充null输出
@@ -91,9 +91,8 @@ auto NestIndexJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
       right_tuples.clear();
 
       // 根据匹配的到的RID，找到匹配的右表中的所有完整的tuple，然后存起来
-      Tuple right_tuple;
       for (auto &x : result) {
-        RightTableInfo->table_->GetTuple(x, &right_tuple, exec_ctx_->GetTransaction());
+        auto right_tuple = RightTableInfo->table_->GetTuple(x).second;
         right_tuples.push_back(right_tuple);
       }
       ptr = 0;

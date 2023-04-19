@@ -14,6 +14,7 @@ auto Optimizer::OptimizeCustom(const AbstractPlanNodeRef &plan) -> AbstractPlanN
   p = OptimizeNLJAsHashJoin(p);
   p = OptimizeOrderByAsIndexScan(p);
   p = OptimizeSortLimitAsTopN(p);
+  p = OptimizeNLJAsIndexJoin(p);
   return p;
 }
 

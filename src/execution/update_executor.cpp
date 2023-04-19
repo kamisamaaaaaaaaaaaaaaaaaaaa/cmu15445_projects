@@ -44,18 +44,26 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     }
     Tuple new_tuple = Tuple(values, &table_info_->schema_);
 
-    if (table_info_->table_->UpdateTuple(new_tuple, *rid, exec_ctx_->GetTransaction())) {
+    auto tuplemeta = table_info_->table_->GetTupleMeta(*rid);
+    tuplemeta.is_deleted_ = true;
+    table_info_->table_->UpdateTupleMeta(tuplemeta, *rid);
+
+    auto new_tuplemeta = TupleMeta{INVALID_TXN_ID, INVALID_TXN_ID, false};
+    auto rid_optional = table_info_->table_->InsertTuple(new_tuplemeta, new_tuple, exec_ctx_->GetLockManager(),
+                                                         exec_ctx_->GetTransaction(), table_info_->oid_);
+    if (rid_optional.has_value()) {
       nums++;
-    }
+      *rid = rid_optional.value();
 
-    for (auto &x : index_infos_) {
-      Tuple partial_tuple =
-          tuple->KeyFromTuple(table_info_->schema_, *(x->index_->GetKeySchema()), x->index_->GetKeyAttrs());
-      x->index_->DeleteEntry(partial_tuple, *rid, exec_ctx_->GetTransaction());
+      for (auto &x : index_infos_) {
+        Tuple partial_tuple =
+            tuple->KeyFromTuple(table_info_->schema_, *(x->index_->GetKeySchema()), x->index_->GetKeyAttrs());
+        x->index_->DeleteEntry(partial_tuple, *rid, exec_ctx_->GetTransaction());
 
-      Tuple partial_new_tuple =
-          new_tuple.KeyFromTuple(table_info_->schema_, *(x->index_->GetKeySchema()), x->index_->GetKeyAttrs());
-      x->index_->InsertEntry(partial_new_tuple, *rid, exec_ctx_->GetTransaction());
+        Tuple partial_new_tuple =
+            new_tuple.KeyFromTuple(table_info_->schema_, *(x->index_->GetKeySchema()), x->index_->GetKeyAttrs());
+        x->index_->InsertEntry(partial_new_tuple, *rid, exec_ctx_->GetTransaction());
+      }
     }
   }
 

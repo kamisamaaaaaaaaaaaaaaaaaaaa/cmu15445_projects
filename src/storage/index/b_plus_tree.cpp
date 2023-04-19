@@ -1260,6 +1260,7 @@ auto BPLUSTREE_TYPE::Begin() -> INDEXITERATOR_TYPE {
 
   guard.SetDirty(false);
   guard.Drop();
+
   return INDEXITERATOR_TYPE(bpm_, begin_leaf, 0);
 }
 

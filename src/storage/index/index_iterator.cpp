@@ -35,7 +35,8 @@ INDEXITERATOR_TYPE::~IndexIterator() = default;
 INDEX_TEMPLATE_ARGUMENTS
 auto INDEXITERATOR_TYPE::IsEnd() -> bool { return cur_ == -1; }
 
-INDEX_TEMPLATE_ARGUMENTS auto INDEXITERATOR_TYPE::operator*() -> const MappingType & { return item_; }
+INDEX_TEMPLATE_ARGUMENTS
+auto INDEXITERATOR_TYPE::operator*() -> const MappingType & { return item_; }
 
 INDEX_TEMPLATE_ARGUMENTS
 auto INDEXITERATOR_TYPE::operator++() -> INDEXITERATOR_TYPE & {

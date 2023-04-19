@@ -53,7 +53,7 @@ class NestIndexJoinExecutor : public AbstractExecutor {
   /** The nested index join plan node. */
   const NestedIndexJoinPlanNode *plan_;
   TableInfo *RightTableInfo;
-  IndexInfo *IndexInfo;
+  IndexInfo *indexInfo;
   std::unique_ptr<AbstractExecutor> left_executor;
 
   Tuple left_tuple;

@@ -38,7 +38,6 @@ auto Optimizer::OptimizeNLJAsIndexJoin(const AbstractPlanNodeRef &plan) -> Abstr
     children.emplace_back(OptimizeNLJAsIndexJoin(child));
   }
   auto optimized_plan = plan->CloneWithChildren(std::move(children));
-
   if (optimized_plan->GetType() == PlanType::NestedLoopJoin) {
     const auto &nlj_plan = dynamic_cast<const NestedLoopJoinPlanNode &>(*optimized_plan);
     // Has exactly two children

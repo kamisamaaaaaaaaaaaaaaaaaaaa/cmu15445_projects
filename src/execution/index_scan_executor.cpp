@@ -19,7 +19,7 @@ IndexScanExecutor::IndexScanExecutor(ExecutorContext *exec_ctx, const IndexScanP
 
 void IndexScanExecutor::Init() {
   auto index_info = exec_ctx_->GetCatalog()->GetIndex(plan_->GetIndexOid());
-  auto b_tree_index = dynamic_cast<BPlusTreeIndexForOneIntegerColumn *>(index_info->index_.get());
+  auto b_tree_index = dynamic_cast<BPlusTreeIndexForTwoIntegerColumn *>(index_info->index_.get());
   iter = b_tree_index->GetBeginIterator();
   end = b_tree_index->GetEndIterator();
 
@@ -29,7 +29,9 @@ void IndexScanExecutor::Init() {
 auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   if (iter == end) return false;
 
-  table_info_->table_->GetTuple((*iter).second, tuple, exec_ctx_->GetTransaction());
+  auto tuplepair = table_info_->table_->GetTuple((*iter).second);
+  *tuple = tuplepair.second;
+  *rid = tuple->GetRid();
 
   ++iter;
 

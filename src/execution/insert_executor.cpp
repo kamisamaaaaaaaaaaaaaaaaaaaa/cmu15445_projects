@@ -38,13 +38,18 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
 
   int nums = 0;
   while (child_executor_->Next(tuple, rid)) {
-    if (table_info_->table_->InsertTuple(*tuple, rid, exec_ctx_->GetTransaction())) {
+    TupleMeta tuplemeta = {INVALID_TXN_ID, INVALID_TXN_ID, false};
+    auto rid_optional = table_info_->table_->InsertTuple(tuplemeta, *tuple, exec_ctx_->GetLockManager(),
+                                                         exec_ctx_->GetTransaction(), table_info_->oid_);
+    if (rid_optional.has_value()) {
+      *rid = rid_optional.value();
       nums++;
-    }
-    for (auto &x : index_infos_) {
-      Tuple partial_tuple =
-          tuple->KeyFromTuple(table_info_->schema_, *(x->index_->GetKeySchema()), x->index_->GetKeyAttrs());
-      x->index_->InsertEntry(partial_tuple, *rid, exec_ctx_->GetTransaction());
+
+      for (auto &x : index_infos_) {
+        Tuple partial_tuple =
+            tuple->KeyFromTuple(table_info_->schema_, *(x->index_->GetKeySchema()), x->index_->GetKeyAttrs());
+        x->index_->InsertEntry(partial_tuple, *rid, exec_ctx_->GetTransaction());
+      }
     }
   }
 
