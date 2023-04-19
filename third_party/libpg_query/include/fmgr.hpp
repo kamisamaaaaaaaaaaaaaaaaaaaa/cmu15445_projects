@@ -22,4 +22,4 @@
 typedef struct PGFunctionCallInfoData *PGFunctionCallInfo;
 
 /* Standard parameter list for fmgr-compatible functions */
-#define PG_FUNCTION_ARGS	PGFunctionCallInfo fcinfo
+#define PG_FUNCTION_ARGS PGFunctionCallInfo fcinfo

@@ -20,8 +20,8 @@
  */
 typedef int16_t PGAttrNumber;
 
-#define InvalidAttrNumber		0
-#define MaxAttrNumber			32767
+#define InvalidAttrNumber 0
+#define MaxAttrNumber 32767
 
 /* ----------------
  *		support macros
@@ -31,15 +31,13 @@ typedef int16_t PGAttrNumber;
  * AttributeNumberIsValid
  *		True iff the attribute number is valid.
  */
-#define AttributeNumberIsValid(attributeNumber) \
-	((bool) ((attributeNumber) != InvalidAttrNumber))
+#define AttributeNumberIsValid(attributeNumber) ((bool)((attributeNumber) != InvalidAttrNumber))
 
 /*
  * AttrNumberIsForUserDefinedAttr
  *		True iff the attribute number corresponds to an user defined attribute.
  */
-#define AttrNumberIsForUserDefinedAttr(attributeNumber) \
-	((bool) ((attributeNumber) > 0))
+#define AttrNumberIsForUserDefinedAttr(attributeNumber) ((bool)((attributeNumber) > 0))
 
 /*
  * AttrNumberGetAttrOffset
@@ -48,15 +46,10 @@ typedef int16_t PGAttrNumber;
  * Note:
  *		Assumes the attribute number is for a user defined attribute.
  */
-#define AttrNumberGetAttrOffset(attNum) \
-( \
-	AssertMacro(AttrNumberIsForUserDefinedAttr(attNum)), \
-	((attNum) - 1) \
-)
+#define AttrNumberGetAttrOffset(attNum) (AssertMacro(AttrNumberIsForUserDefinedAttr(attNum)), ((attNum)-1))
 
 /*
  * AttributeOffsetGetAttributeNumber
  *		Returns the attribute number for an attribute offset.
  */
-#define AttrOffsetGetAttrNumber(attributeOffset) \
-	 ((PGAttrNumber) (1 + (attributeOffset)))
+#define AttrOffsetGetAttrNumber(attributeOffset) ((PGAttrNumber)(1 + (attributeOffset)))

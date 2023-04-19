@@ -21,10 +21,10 @@
  *
  *-------------------------------------------------------------------------
  */
-#include "pg_functions.hpp"
 #include <string.h>
-#include <string>
 #include <memory>
+#include <string>
+#include "pg_functions.hpp"
 
 #include "parser/gramparse.hpp"
 
@@ -48,47 +48,46 @@ namespace duckdb_libpgquery {
  * receive a different case-normalization mapping.
  */
 const PGScanKeyword *ScanKeywordLookup(const char *text, const PGScanKeyword *keywords, int num_keywords) {
-	int len, i;
-	const PGScanKeyword *low;
-	const PGScanKeyword *high;
+  int len, i;
+  const PGScanKeyword *low;
+  const PGScanKeyword *high;
 
-	len = strlen(text);
-	auto data = std::unique_ptr<char[]>(new char[len + 1]);
-	auto word = data.get();
-	/* We assume all keywords are shorter than NAMEDATALEN. */
+  len = strlen(text);
+  auto data = std::unique_ptr<char[]>(new char[len + 1]);
+  auto word = data.get();
+  /* We assume all keywords are shorter than NAMEDATALEN. */
 
-	/*
-	 * Apply an ASCII-only downcasing.  We must not use tolower() since it may
-	 * produce the wrong translation in some locales (eg, Turkish).
-	 */
-	for (i = 0; i < len; i++) {
-		char ch = text[i];
+  /*
+   * Apply an ASCII-only downcasing.  We must not use tolower() since it may
+   * produce the wrong translation in some locales (eg, Turkish).
+   */
+  for (i = 0; i < len; i++) {
+    char ch = text[i];
 
-		if (ch >= 'A' && ch <= 'Z')
-			ch += 'a' - 'A';
-		word[i] = ch;
-	}
-	word[len] = '\0';
+    if (ch >= 'A' && ch <= 'Z') ch += 'a' - 'A';
+    word[i] = ch;
+  }
+  word[len] = '\0';
 
-	/*
-	 * Now do a binary search using plain strcmp() comparison.
-	 */
-	low = keywords;
-	high = keywords + (num_keywords - 1);
-	while (low <= high) {
-		const PGScanKeyword *middle;
-		int difference;
+  /*
+   * Now do a binary search using plain strcmp() comparison.
+   */
+  low = keywords;
+  high = keywords + (num_keywords - 1);
+  while (low <= high) {
+    const PGScanKeyword *middle;
+    int difference;
 
-		middle = low + (high - low) / 2;
-		difference = strcmp(middle->name, word);
-		if (difference == 0)
-			return middle;
-		else if (difference < 0)
-			low = middle + 1;
-		else
-			high = middle - 1;
-	}
+    middle = low + (high - low) / 2;
+    difference = strcmp(middle->name, word);
+    if (difference == 0)
+      return middle;
+    else if (difference < 0)
+      low = middle + 1;
+    else
+      high = middle - 1;
+  }
 
-	return NULL;
+  return NULL;
 }
-}
+}  // namespace duckdb_libpgquery

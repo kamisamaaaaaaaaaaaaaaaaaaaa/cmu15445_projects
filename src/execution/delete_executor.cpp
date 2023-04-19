@@ -38,9 +38,11 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
 
   int nums = 0;
   while (child_executor_->Next(tuple, rid)) {
-    if (table_info_->table_->MarkDelete(*rid, exec_ctx_->GetTransaction())) {
-      nums++;
-    }
+    auto tuplemeta = table_info_->table_->GetTupleMeta(*rid);
+    tuplemeta.is_deleted_ = true;
+    table_info_->table_->UpdateTupleMeta(tuplemeta, *rid);
+
+    nums++;
 
     for (auto &x : index_infos_) {
       Tuple partial_tuple =

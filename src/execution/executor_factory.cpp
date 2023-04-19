@@ -21,6 +21,7 @@
 #include "execution/executors/filter_executor.h"
 #include "execution/executors/hash_join_executor.h"
 #include "execution/executors/index_scan_executor.h"
+#include "execution/executors/init_check_executor.h"
 #include "execution/executors/insert_executor.h"
 #include "execution/executors/limit_executor.h"
 #include "execution/executors/mock_scan_executor.h"
@@ -29,6 +30,7 @@
 #include "execution/executors/projection_executor.h"
 #include "execution/executors/seq_scan_executor.h"
 #include "execution/executors/sort_executor.h"
+#include "execution/executors/topn_check_executor.h"
 #include "execution/executors/topn_executor.h"
 #include "execution/executors/update_executor.h"
 #include "execution/executors/values_executor.h"
@@ -44,6 +46,7 @@ namespace bustub {
 
 auto ExecutorFactory::CreateExecutor(ExecutorContext *exec_ctx, const AbstractPlanNodeRef &plan)
     -> std::unique_ptr<AbstractExecutor> {
+  auto check_options_set = exec_ctx->GetCheckOptions()->check_options_set_;
   switch (plan->GetType()) {
     // Create a new sequential scan executor
     case PlanType::SeqScan: {
@@ -95,6 +98,15 @@ auto ExecutorFactory::CreateExecutor(ExecutorContext *exec_ctx, const AbstractPl
       auto nested_loop_join_plan = dynamic_cast<const NestedLoopJoinPlanNode *>(plan.get());
       auto left = ExecutorFactory::CreateExecutor(exec_ctx, nested_loop_join_plan->GetLeftPlan());
       auto right = ExecutorFactory::CreateExecutor(exec_ctx, nested_loop_join_plan->GetRightPlan());
+      if (check_options_set.find(CheckOption::ENABLE_NLJ_CHECK) != check_options_set.end()) {
+        auto left_check =
+            std::make_unique<InitCheckExecutor>(exec_ctx, nested_loop_join_plan->GetLeftPlan(), std::move(left));
+        auto right_check =
+            std::make_unique<InitCheckExecutor>(exec_ctx, nested_loop_join_plan->GetRightPlan(), std::move(right));
+        exec_ctx->AddCheckExecutor(left_check.get(), right_check.get());
+        return std::make_unique<NestedLoopJoinExecutor>(exec_ctx, nested_loop_join_plan, std::move(left_check),
+                                                        std::move(right_check));
+      }
       return std::make_unique<NestedLoopJoinExecutor>(exec_ctx, nested_loop_join_plan, std::move(left),
                                                       std::move(right));
     }
@@ -151,6 +163,12 @@ auto ExecutorFactory::CreateExecutor(ExecutorContext *exec_ctx, const AbstractPl
     case PlanType::TopN: {
       const auto *topn_plan = dynamic_cast<const TopNPlanNode *>(plan.get());
       auto child = ExecutorFactory::CreateExecutor(exec_ctx, topn_plan->GetChildPlan());
+      if (check_options_set.find(CheckOption::ENABLE_TOPN_CHECK) != check_options_set.end()) {
+        auto topn_executor = std::make_unique<TopNExecutor>(exec_ctx, topn_plan, nullptr);
+        auto check = std::make_unique<TopNCheckExecutor>(exec_ctx, topn_plan, std::move(child), topn_executor.get());
+        topn_executor->SetChildExecutor(std::move(check));
+        return topn_executor;
+      }
       return std::make_unique<TopNExecutor>(exec_ctx, topn_plan, std::move(child));
     }
 

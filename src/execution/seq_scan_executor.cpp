@@ -23,19 +23,29 @@ void SeqScanExecutor::Init() {
   auto catalog = exec_ctx_->GetCatalog();
   auto table_info = catalog->GetTable(table_oid);
   auto &table = table_info->table_;
-  iter = table->Begin(exec_ctx_->GetTransaction());
-  iter_end = table->End();
+  iter = new TableIterator(table->MakeIterator());
 }
 
 auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
-  if (iter == iter_end) {
-    return false;
+  while (true) {
+    if (iter->IsEnd()) {
+      delete iter;
+      return false;
+    }
+
+    *tuple = iter->GetTuple().second;
+
+    if (iter->GetTuple().first.is_deleted_) {
+      ++(*iter);
+      continue;
+    } else {
+      *rid = iter->GetRID();
+      break;
+    }
   }
 
-  (*tuple) = *iter;
-  (*rid) = tuple->GetRid();
+  ++(*iter);
 
-  iter++;
   return true;
 }
 

@@ -30,6 +30,7 @@ void AggregationExecutor::Init() {
   auto aggregates = plan_->GetAggregates();
 
   child_->Init();
+  aht_.Clear();
 
   Tuple tuple;
   RID rid;

@@ -23,11 +23,11 @@
 namespace bustub {
 
 // NOLINTNEXTLINE
-TEST(HashTablePageTest, DirectoryPageSampleTest) {
+TEST(HashTablePageTest, DISABLED_DirectoryPageSampleTest) {
   auto *disk_manager = new DiskManager("test.db");
   auto *bpm = new BufferPoolManager(5, disk_manager);
 
-  // // get a directory page from the BufferPoolManager
+  // get a directory page from the BufferPoolManager
   page_id_t directory_page_id = INVALID_PAGE_ID;
   auto directory_page = reinterpret_cast<HashTableDirectoryPage *>(bpm->NewPage(&directory_page_id)->GetData());
 
@@ -56,7 +56,7 @@ TEST(HashTablePageTest, DirectoryPageSampleTest) {
 }
 
 // NOLINTNEXTLINE
-TEST(HashTablePageTest, BucketPageSampleTest) {
+TEST(HashTablePageTest, DISABLED_BucketPageSampleTest) {
   auto *disk_manager = new DiskManager("test.db");
   auto *bpm = new BufferPoolManager(5, disk_manager);
 

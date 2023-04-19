@@ -19,7 +19,7 @@
 #pragma once
 
 /* Introduces a catalog's structure definition */
-#define CATALOG(name,oid)	typedef struct CppConcat(FormData_,name)
+#define CATALOG(name, oid) typedef struct CppConcat(FormData_, name)
 
 /* Options that may appear after CATALOG (on the same line) */
 #define BKI_BOOTSTRAP
@@ -42,6 +42,6 @@
 
 /* Declarations that provide the initial content of a catalog */
 /* In C, these need to expand into some harmless, repeatable declaration */
-#define DATA(x)  int no_such_variable
+#define DATA(x) int no_such_variable
 #define DESCR(x) int no_such_variable
 #define SHDESCR(x) int no_such_variable
