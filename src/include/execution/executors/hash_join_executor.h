@@ -51,9 +51,17 @@ class HashJoinExecutor : public AbstractExecutor {
   /** @return The output schema for the join */
   auto GetOutputSchema() const -> const Schema & override { return plan_->OutputSchema(); };
 
+  void GetOutputTuple(Tuple *tuple, bool is_matched);
+
  private:
   /** The NestedLoopJoin plan node to be executed. */
   const HashJoinPlanNode *plan_;
+  std::unordered_map<JoinHashKey, JoinHashValue> ht_{};
+  std::unique_ptr<AbstractExecutor> left_child_;
+  std::unique_ptr<AbstractExecutor> right_child_;
+
+  std::vector<Tuple> match_right_tuples;
+  Tuple left_tuple;
 };
 
 }  // namespace bustub
