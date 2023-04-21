@@ -18,6 +18,13 @@ SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNod
   plan_ = plan;
 }
 
+SeqScanExecutor::~SeqScanExecutor() {
+  if (iter != nullptr) {
+    delete iter;
+    iter = nullptr;
+  }
+}
+
 void SeqScanExecutor::Init() {
   auto table_oid = plan_->GetTableOid();
   auto catalog = exec_ctx_->GetCatalog();
@@ -30,6 +37,7 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   while (true) {
     if (iter->IsEnd()) {
       delete iter;
+      iter = nullptr;
       return false;
     }
 

@@ -89,7 +89,11 @@ auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
 
     if (!left_executor_->Next(left_tuple, rid)) {
       delete left_tuple;
+      left_tuple = nullptr;
+
       delete right_tuple;
+      right_tuple = nullptr;
+
       return false;
     }
     right_executor_->Init();
