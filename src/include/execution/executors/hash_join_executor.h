@@ -17,13 +17,45 @@
 
 #include <unordered_map>
 #include <vector>
+#include "common/util/hash_util.h"
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/hash_join_plan.h"
 #include "storage/table/tuple.h"
 
 namespace bustub {
+struct JoinHashKey {
+  std::vector<Value> joinkeys_;
+  auto operator==(const JoinHashKey &other) const -> bool {
+    for (uint32_t i = 0; i < other.joinkeys_.size(); i++) {
+      if (joinkeys_[i].CompareEquals(other.joinkeys_[i]) != CmpBool::CmpTrue) {
+        return false;
+      }
+    }
+    return true;
+  }
+};
+}  // namespace bustub
 
+namespace std {
+template <>
+struct hash<bustub::JoinHashKey> {
+  auto operator()(const bustub::JoinHashKey &join_keys) const -> std::size_t {
+    size_t curr_hash = 0;
+    for (const auto &key : join_keys.joinkeys_) {
+      if (!key.IsNull()) {
+        curr_hash = bustub::HashUtil::CombineHashes(curr_hash, bustub::HashUtil::HashValue(&key));
+      }
+    }
+    return curr_hash;
+  }
+};
+}  // namespace std
+
+namespace bustub {
+struct JoinHashValue {
+  std::vector<Tuple> match_tuples_;
+};
 /**
  * HashJoinExecutor executes a nested-loop JOIN on two tables.
  */
@@ -65,5 +97,4 @@ class HashJoinExecutor : public AbstractExecutor {
   std::vector<Tuple> match_right_tuples_;
   Tuple left_tuple_;
 };
-
 }  // namespace bustub

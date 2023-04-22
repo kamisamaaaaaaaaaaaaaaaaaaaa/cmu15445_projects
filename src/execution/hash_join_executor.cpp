@@ -101,5 +101,4 @@ auto HashJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
 
   return false;
 }
-
 }  // namespace bustub

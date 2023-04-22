@@ -15,7 +15,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include "common/util/hash_util.h"
 
 #include "binder/table_ref/bound_join_ref.h"
 #include "execution/expressions/abstract_expression.h"
@@ -80,35 +79,4 @@ class HashJoinPlanNode : public AbstractPlanNode {
   auto PlanNodeToString() const -> std::string override;
 };
 
-struct JoinHashKey {
-  std::vector<Value> joinkeys_;
-  auto operator==(const JoinHashKey &other) const -> bool {
-    for (uint32_t i = 0; i < other.joinkeys_.size(); i++) {
-      if (joinkeys_[i].CompareEquals(other.joinkeys_[i]) != CmpBool::CmpTrue) {
-        return false;
-      }
-    }
-    return true;
-  }
-};
-
-struct JoinHashValue {
-  std::vector<Tuple> match_tuples_;
-};
 }  // namespace bustub
-
-namespace std {
-
-template <>
-struct hash<bustub::JoinHashKey> {
-  auto operator()(const bustub::JoinHashKey &join_keys) const -> std::size_t {
-    size_t curr_hash = 0;
-    for (const auto &key : join_keys.joinkeys_) {
-      if (!key.IsNull()) {
-        curr_hash = bustub::HashUtil::CombineHashes(curr_hash, bustub::HashUtil::HashValue(&key));
-      }
-    }
-    return curr_hash;
-  }
-};
-}  // namespace std
