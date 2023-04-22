@@ -23,29 +23,29 @@ void IndexScanExecutor::Init() {
   auto b_tree_index = dynamic_cast<BPlusTreeIndexForTwoIntegerColumn *>(index_info->index_.get());
 
   auto keyvalues = plan_->GetKeyValues();
-  if (keyvalues.size() == 0) {
-    iter = b_tree_index->GetBeginIterator();
+  if (keyvalues.empty()) {
+    iter_ = b_tree_index->GetBeginIterator();
   } else {
     Tuple key = Tuple(keyvalues, index_info->index_->GetKeySchema());
     IntegerKeyType index_key;
     index_key.SetFromKey(key);
-    iter = b_tree_index->GetBeginIterator(index_key);
+    iter_ = b_tree_index->GetBeginIterator(index_key);
   }
 
-  end = b_tree_index->GetEndIterator();
+  end_ = b_tree_index->GetEndIterator();
   table_info_ = exec_ctx_->GetCatalog()->GetTable(index_info->table_name_);
 }
 
 auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
-  if (iter == end) {
+  if (iter_ == end_) {
     return false;
   }
 
-  while (iter != end) {
-    auto tuplepair = table_info_->table_->GetTuple((*iter).second);
+  while (iter_ != end_) {
+    auto tuplepair = table_info_->table_->GetTuple((*iter_).second);
     *tuple = tuplepair.second;
     *rid = tuple->GetRid();
-    ++iter;
+    ++iter_;
 
     if (!plan_->GetKeyValues().empty()) {
       if (plan_->Predicate()->Evaluate(tuple, GetOutputSchema()).CompareEquals(ValueFactory::GetBooleanValue(true)) ==

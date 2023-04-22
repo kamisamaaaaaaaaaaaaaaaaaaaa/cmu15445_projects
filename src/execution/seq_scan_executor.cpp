@@ -19,9 +19,9 @@ SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNod
 }
 
 SeqScanExecutor::~SeqScanExecutor() {
-  if (iter != nullptr) {
-    delete iter;
-    iter = nullptr;
+  if (iter_ != nullptr) {
+    delete iter_;
+    iter_ = nullptr;
   }
 }
 
@@ -30,29 +30,28 @@ void SeqScanExecutor::Init() {
   auto catalog = exec_ctx_->GetCatalog();
   auto table_info = catalog->GetTable(table_oid);
   auto &table = table_info->table_;
-  iter = new TableIterator(table->MakeIterator());
+  iter_ = new TableIterator(table->MakeIterator());
 }
 
 auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   while (true) {
-    if (iter->IsEnd()) {
-      delete iter;
-      iter = nullptr;
+    if (iter_->IsEnd()) {
+      delete iter_;
+      iter_ = nullptr;
       return false;
     }
 
-    *tuple = iter->GetTuple().second;
+    *tuple = iter_->GetTuple().second;
 
-    if (iter->GetTuple().first.is_deleted_) {
-      ++(*iter);
+    if (iter_->GetTuple().first.is_deleted_) {
+      ++(*iter_);
       continue;
-    } else {
-      *rid = iter->GetRID();
-      break;
     }
+    *rid = iter_->GetRID();
+    break;
   }
 
-  ++(*iter);
+  ++(*iter_);
 
   return true;
 }

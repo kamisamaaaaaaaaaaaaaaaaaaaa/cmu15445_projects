@@ -15,6 +15,7 @@
 #include <string>
 #include <utility>
 
+#include <vector>
 #include "catalog/catalog.h"
 #include "execution/expressions/abstract_expression.h"
 #include "execution/plans/abstract_plan.h"
@@ -37,7 +38,7 @@ class IndexScanPlanNode : public AbstractPlanNode {
                     AbstractExpressionRef predicate)
       : AbstractPlanNode(std::move(output), {}),
         index_oid_(index_oid),
-        key_values_(key_values),
+        key_values_(std::move(key_values)),
         predicate_(std::move(predicate)) {}
 
   auto GetType() const -> PlanType override { return PlanType::IndexScan; }

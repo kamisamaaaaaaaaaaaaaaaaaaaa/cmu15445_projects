@@ -38,18 +38,18 @@ void HashJoinExecutor::Init() {
   while (right_child_->Next(&tuple, &rid)) {
     JoinHashKey joinhashkey;
     auto expressions = plan_->RightJoinKeyExpressions();
-    for (auto express : expressions) {
-      joinhashkey.joinkeys.push_back(express->Evaluate(&tuple, right_child_->GetOutputSchema()));
+    for (auto const &express : expressions) {
+      joinhashkey.joinkeys_.push_back(express->Evaluate(&tuple, right_child_->GetOutputSchema()));
     }
-    ht_[joinhashkey].match_tuples.push_back(tuple);
+    ht_[joinhashkey].match_tuples_.push_back(tuple);
   }
 }
 
 void HashJoinExecutor::GetOutputTuple(Tuple *tuple, bool is_matched) {
   Tuple right_tuple;
   if (is_matched) {
-    right_tuple = match_right_tuples.back();
-    match_right_tuples.pop_back();
+    right_tuple = match_right_tuples_.back();
+    match_right_tuples_.pop_back();
   }
 
   std::vector<Value> values;
@@ -57,7 +57,7 @@ void HashJoinExecutor::GetOutputTuple(Tuple *tuple, bool is_matched) {
   auto right_cols_cnt = plan_->GetRightPlan()->OutputSchema().GetColumnCount();
 
   for (uint32_t i = 0; i < left_cols_cnt; i++) {
-    values.push_back(left_tuple.GetValue(&plan_->GetLeftPlan()->OutputSchema(), i));
+    values.push_back(left_tuple_.GetValue(&plan_->GetLeftPlan()->OutputSchema(), i));
   }
 
   if (is_matched) {
@@ -75,26 +75,27 @@ void HashJoinExecutor::GetOutputTuple(Tuple *tuple, bool is_matched) {
 
 auto HashJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   while (true) {
-    if (!match_right_tuples.empty()) {
+    if (!match_right_tuples_.empty()) {
       GetOutputTuple(tuple, true);
       return true;
-    } else {
-      if (!left_child_->Next(&left_tuple, rid)) {
-        return false;
-      }
+    }
 
-      JoinHashKey joinhashkey;
-      auto expressions = plan_->LeftJoinKeyExpressions();
-      for (auto express : expressions) {
-        joinhashkey.joinkeys.push_back(express->Evaluate(&left_tuple, left_child_->GetOutputSchema()));
-      }
+    if (!left_child_->Next(&left_tuple_, rid)) {
+      return false;
+    }
 
-      if (ht_.count(joinhashkey) == 0 && plan_->GetJoinType() == JoinType::LEFT) {
-        GetOutputTuple(tuple, false);
-        return true;
-      } else if (ht_.count(joinhashkey) != 0) {
-        match_right_tuples = ht_[joinhashkey].match_tuples;
-      }
+    JoinHashKey joinhashkey;
+    auto expressions = plan_->LeftJoinKeyExpressions();
+    for (auto const &express : expressions) {
+      joinhashkey.joinkeys_.push_back(express->Evaluate(&left_tuple_, left_child_->GetOutputSchema()));
+    }
+
+    if (ht_.count(joinhashkey) == 0 && plan_->GetJoinType() == JoinType::LEFT) {
+      GetOutputTuple(tuple, false);
+      return true;
+    }
+    if (ht_.count(joinhashkey) != 0) {
+      match_right_tuples_ = ht_[joinhashkey].match_tuples_;
     }
   }
 

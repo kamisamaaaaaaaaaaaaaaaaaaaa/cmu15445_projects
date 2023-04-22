@@ -58,6 +58,6 @@ class NestIndexJoinExecutor : public AbstractExecutor {
 
   Tuple left_tuple;
   std::vector<Tuple> right_tuples;
-  unsigned long ptr;
+  size_t ptr;
 };
 }  // namespace bustub

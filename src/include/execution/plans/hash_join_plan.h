@@ -81,10 +81,10 @@ class HashJoinPlanNode : public AbstractPlanNode {
 };
 
 struct JoinHashKey {
-  std::vector<Value> joinkeys;
+  std::vector<Value> joinkeys_;
   auto operator==(const JoinHashKey &other) const -> bool {
-    for (uint32_t i = 0; i < other.joinkeys.size(); i++) {
-      if (joinkeys[i].CompareEquals(other.joinkeys[i]) != CmpBool::CmpTrue) {
+    for (uint32_t i = 0; i < other.joinkeys_.size(); i++) {
+      if (joinkeys_[i].CompareEquals(other.joinkeys_[i]) != CmpBool::CmpTrue) {
         return false;
       }
     }
@@ -93,7 +93,7 @@ struct JoinHashKey {
 };
 
 struct JoinHashValue {
-  std::vector<Tuple> match_tuples;
+  std::vector<Tuple> match_tuples_;
 };
 }  // namespace bustub
 
@@ -103,7 +103,7 @@ template <>
 struct hash<bustub::JoinHashKey> {
   auto operator()(const bustub::JoinHashKey &join_keys) const -> std::size_t {
     size_t curr_hash = 0;
-    for (const auto &key : join_keys.joinkeys) {
+    for (const auto &key : join_keys.joinkeys_) {
       if (!key.IsNull()) {
         curr_hash = bustub::HashUtil::CombineHashes(curr_hash, bustub::HashUtil::HashValue(&key));
       }

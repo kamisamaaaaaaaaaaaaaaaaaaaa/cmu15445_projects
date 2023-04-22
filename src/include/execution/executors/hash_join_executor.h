@@ -15,6 +15,8 @@
 #include <memory>
 #include <utility>
 
+#include <unordered_map>
+#include <vector>
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/hash_join_plan.h"
@@ -60,8 +62,8 @@ class HashJoinExecutor : public AbstractExecutor {
   std::unique_ptr<AbstractExecutor> left_child_;
   std::unique_ptr<AbstractExecutor> right_child_;
 
-  std::vector<Tuple> match_right_tuples;
-  Tuple left_tuple;
+  std::vector<Tuple> match_right_tuples_;
+  Tuple left_tuple_;
 };
 
 }  // namespace bustub

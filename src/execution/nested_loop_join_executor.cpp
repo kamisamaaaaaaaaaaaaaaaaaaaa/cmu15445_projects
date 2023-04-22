@@ -38,11 +38,11 @@ void NestedLoopJoinExecutor::Init() {
   left_executor_->Init();
   right_executor_->Init();
 
-  left_tuple = new Tuple();
-  right_tuple = new Tuple();
+  left_tuple_ = new Tuple();
+  right_tuple_ = new Tuple();
 
-  left_executor_->Next(left_tuple, &rid);
-  match = false;
+  left_executor_->Next(left_tuple_, &rid);
+  match_ = false;
 }
 
 void NestedLoopJoinExecutor::GetOutputTuple(Tuple *tuple, bool is_match) {
@@ -52,12 +52,12 @@ void NestedLoopJoinExecutor::GetOutputTuple(Tuple *tuple, bool is_match) {
   auto right_col_cnts = plan_->GetRightPlan()->OutputSchema().GetColumnCount();
 
   for (uint32_t i = 0; i < left_col_cnts; i++) {
-    values.push_back(left_tuple->GetValue(&plan_->GetLeftPlan()->OutputSchema(), i));
+    values.push_back(left_tuple_->GetValue(&plan_->GetLeftPlan()->OutputSchema(), i));
   }
 
   if (is_match) {
     for (uint32_t i = 0; i < right_col_cnts; i++) {
-      values.push_back(right_tuple->GetValue(&plan_->GetRightPlan()->OutputSchema(), i));
+      values.push_back(right_tuple_->GetValue(&plan_->GetRightPlan()->OutputSchema(), i));
     }
   } else {
     for (uint32_t i = 0; i < right_col_cnts; i++) {
@@ -67,13 +67,13 @@ void NestedLoopJoinExecutor::GetOutputTuple(Tuple *tuple, bool is_match) {
 
   *tuple = Tuple(values, &GetOutputSchema());
 
-  match = true;
+  match_ = true;
 }
 
 auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   while (true) {
-    while (right_executor_->Next(right_tuple, rid)) {
-      auto value = plan_->Predicate()->EvaluateJoin(left_tuple, plan_->GetLeftPlan()->OutputSchema(), right_tuple,
+    while (right_executor_->Next(right_tuple_, rid)) {
+      auto value = plan_->Predicate()->EvaluateJoin(left_tuple_, plan_->GetLeftPlan()->OutputSchema(), right_tuple_,
                                                     plan_->GetRightPlan()->OutputSchema());
       if (value.CompareEquals(ValueFactory::GetBooleanValue(true)) == CmpBool::CmpTrue) {
         GetOutputTuple(tuple, true);
@@ -81,23 +81,23 @@ auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
       }
     }
 
-    if (!match && plan_->GetJoinType() == JoinType::LEFT) {
+    if (!match_ && plan_->GetJoinType() == JoinType::LEFT) {
       GetOutputTuple(tuple, false);
       right_executor_->Init();
       return true;
     }
 
-    if (!left_executor_->Next(left_tuple, rid)) {
-      delete left_tuple;
-      left_tuple = nullptr;
+    if (!left_executor_->Next(left_tuple_, rid)) {
+      delete left_tuple_;
+      left_tuple_ = nullptr;
 
-      delete right_tuple;
-      right_tuple = nullptr;
+      delete right_tuple_;
+      right_tuple_ = nullptr;
 
       return false;
     }
     right_executor_->Init();
-    match = false;
+    match_ = false;
   }
 
   return true;
