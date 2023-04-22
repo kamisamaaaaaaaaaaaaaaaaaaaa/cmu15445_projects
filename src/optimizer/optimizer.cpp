@@ -15,6 +15,7 @@ auto Optimizer::Optimize(const AbstractPlanNodeRef &plan) -> AbstractPlanNodeRef
     p = OptimizeSortLimitAsTopN(p);
     p = OptimizeNLJAsIndexJoin(p);
     p = OptimizeNLJAsHashJoin(p);
+    p = OptimizeSelectIndexScan(p);
     return p;
   }
   // By default, use user-defined rules.

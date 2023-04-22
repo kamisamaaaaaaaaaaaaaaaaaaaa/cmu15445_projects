@@ -1269,9 +1269,11 @@ auto BPLUSTREE_TYPE::Begin() -> INDEXITERATOR_TYPE {
  * first, then construct index iterator
  * @return : index iterator
  */
+// 找到小于等于key的最大数
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE {
   Context ctx;
+
   auto header_page_guard = bpm_->FetchPageRead(header_page_id_);
   auto header_page = header_page_guard.As<BPlusTreeHeaderPage>();
 
@@ -1279,8 +1281,7 @@ auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE {
     header_page_guard.SetDirty(false);
     header_page_guard.Drop();
     return End();
-  }
-
+  };
   auto root_page_guard = bpm_->FetchPageRead(header_page->root_page_id_);
   auto root_page = root_page_guard.As<BPlusTreePage>();
 
@@ -1296,11 +1297,6 @@ auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE {
     begin_leaf = ctx.read_set_.back().PageId();
     auto leaf = reinterpret_cast<const LeafPage *>(root_page);
     index = BinaryFind(leaf, key);
-
-    if (comparator_(leaf->KeyAt(index), key) != 0) {
-      begin_leaf = -1;
-      index = -1;
-    }
 
     while (!ctx.read_set_.empty()) {
       ctx.read_set_.back().SetDirty(false);
@@ -1326,10 +1322,6 @@ auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE {
         begin_leaf = root_page_guard.PageId();
         auto leaf = reinterpret_cast<const LeafPage *>(root_page);
         index = BinaryFind(leaf, key);
-        if (comparator_(leaf->KeyAt(index), key) != 0) {
-          begin_leaf = -1;
-          index = -1;
-        }
 
         root_page_guard.SetDirty(false);
         root_page_guard.Drop();

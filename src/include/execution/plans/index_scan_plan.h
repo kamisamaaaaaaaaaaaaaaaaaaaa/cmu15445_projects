@@ -33,15 +33,28 @@ class IndexScanPlanNode : public AbstractPlanNode {
   IndexScanPlanNode(SchemaRef output, index_oid_t index_oid)
       : AbstractPlanNode(std::move(output), {}), index_oid_(index_oid) {}
 
+  IndexScanPlanNode(SchemaRef output, index_oid_t index_oid, std::vector<Value> key_values,
+                    AbstractExpressionRef predicate)
+      : AbstractPlanNode(std::move(output), {}),
+        index_oid_(index_oid),
+        key_values_(key_values),
+        predicate_(std::move(predicate)) {}
+
   auto GetType() const -> PlanType override { return PlanType::IndexScan; }
 
   /** @return the identifier of the table that should be scanned */
   auto GetIndexOid() const -> index_oid_t { return index_oid_; }
 
+  auto GetKeyValues() const -> std::vector<Value> { return key_values_; };
+
+  auto Predicate() const -> const AbstractExpressionRef & { return predicate_; }
+
   BUSTUB_PLAN_NODE_CLONE_WITH_CHILDREN(IndexScanPlanNode);
 
   /** The table whose tuples should be scanned. */
   index_oid_t index_oid_;
+  std::vector<Value> key_values_;
+  AbstractExpressionRef predicate_;
 
   // Add anything you want here for index lookup
 
