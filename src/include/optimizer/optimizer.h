@@ -86,11 +86,15 @@ class Optimizer {
   /** @brief check if the index can be matched */
   auto MatchIndex(const std::string &table_name, uint32_t index_key_idx)
       -> std::optional<std::tuple<index_oid_t, std::string>>;
+  auto MatchTwoKeysIndex(const std::string &table_name, std::vector<uint32_t> index_key_idxs)
+      -> std::optional<std::tuple<index_oid_t, std::string>>;
 
   /**
    * @brief optimize sort + limit as top N
    */
   auto OptimizeSortLimitAsTopN(const AbstractPlanNodeRef &plan) -> AbstractPlanNodeRef;
+
+  auto OptimizeSelectIndexScan(const AbstractPlanNodeRef &plan) -> AbstractPlanNodeRef;
 
   /**
    * @brief get the estimated cardinality for a table based on the table name. Useful when join reordering. BusTub
@@ -101,7 +105,7 @@ class Optimizer {
    */
   auto EstimatedCardinality(const std::string &table_name) -> std::optional<size_t>;
 
-  void GetLeftAndRightExpreForHashJoin(const AbstractExpressionRef &expr,
+   void GetLeftAndRightExpreForHashJoin(const AbstractExpressionRef &expr,
                                        std::vector<AbstractExpressionRef> &left_key_expressions,
                                        std::vector<AbstractExpressionRef> &right_key_expressions);
 
