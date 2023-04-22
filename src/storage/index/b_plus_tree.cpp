@@ -1281,7 +1281,7 @@ auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE {
     header_page_guard.SetDirty(false);
     header_page_guard.Drop();
     return End();
-  };
+  }
   auto root_page_guard = bpm_->FetchPageRead(header_page->root_page_id_);
   auto root_page = root_page_guard.As<BPlusTreePage>();
 

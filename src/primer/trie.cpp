@@ -5,7 +5,7 @@
 namespace bustub {
 
 bool Trie::dfs_remove(std::shared_ptr<TrieNode> p, std::shared_ptr<TrieNode> fa, std::string_view &key, int u) const {
-  if (u == (int)key.size()) {
+  if (u == static_cast<int>(key.size())) {
     if (!p->is_value_node_) return false;
 
     if (p->children_.size() == 0) {
@@ -85,7 +85,7 @@ auto Trie::Put(std::string_view key, T value) const -> Trie {
 
   if (key.size() == 0) key = " ";
 
-  for (int i = 0; i < (int)key.size() - 1; i++) {
+  for (int i = 0; i < static_cast<int>(key.size()) - 1; i++) {
     char x = key[i];
     if (p->children_.count(x) == 0) p->children_[x] = std::make_shared<TrieNode>();
     p = p->children_[x];

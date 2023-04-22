@@ -79,7 +79,7 @@ class SimpleAggregationHashTable {
         case AggregationType::CountAggregate:
           if (!input.aggregates_[i].IsNull()) {
             if (result->aggregates_[i].IsNull()) {
-              result->aggregates_[i] = Value(ValueFactory::GetIntegerValue(0));
+              result->aggregates_[i] = ValueFactory::GetIntegerValue(0);
             }
             result->aggregates_[i] = result->aggregates_[i].Add(ValueFactory::GetIntegerValue(1));
           }
@@ -236,7 +236,7 @@ class AggregationExecutor : public AbstractExecutor {
   SimpleAggregationHashTable aht_;
   /** Simple aggregation hash table iterator */
   SimpleAggregationHashTable::Iterator aht_iterator_;
-  int cnt;
-  bool has_out;
+  int cnt_;
+  bool has_out_;
 };
 }  // namespace bustub

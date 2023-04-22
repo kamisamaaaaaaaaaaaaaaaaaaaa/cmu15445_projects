@@ -23,19 +23,18 @@ LimitExecutor::LimitExecutor(ExecutorContext *exec_ctx, const LimitPlanNode *pla
 
 void LimitExecutor::Init() {
   child_executor_->Init();
-  num = 0;
+  num_ = 0;
 }
 
 auto LimitExecutor::Next(Tuple *tuple, RID *rid) -> bool {
-  if (num == plan_->GetLimit() || !child_executor_->Next(tuple, rid)) {
+  if (num_ == plan_->GetLimit() || !child_executor_->Next(tuple, rid)) {
     child_executor_.reset();
     return false;
   }
 
-  num++;
+  num_++;
 
   return true;
-  ;
 }
 
 }  // namespace bustub

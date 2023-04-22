@@ -15,6 +15,7 @@
 #include <memory>
 #include <utility>
 
+#include <vector>
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/insert_plan.h"
@@ -60,7 +61,7 @@ class InsertExecutor : public AbstractExecutor {
   std::unique_ptr<AbstractExecutor> child_executor_;
   TableInfo *table_info_;
   std::vector<IndexInfo *> index_infos_;
-  bool has_out;
+  bool has_out_;
 };
 
 }  // namespace bustub

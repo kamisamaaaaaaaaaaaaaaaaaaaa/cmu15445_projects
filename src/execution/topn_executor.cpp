@@ -22,57 +22,50 @@ void TopNExecutor::Init() {
 
       auto ordertype = x.first;
       if (a_val.CompareLessThan(b_val) == CmpBool::CmpTrue) {
-        if (ordertype == OrderByType::ASC || ordertype == OrderByType::DEFAULT) {
-          // 前k小，用大根堆，a<b时返回true,a优先级低放堆底
-          return true;
-        } else if (ordertype == OrderByType::DESC) {
-          // 前k大，用小根堆，a<b时返回false，a优先级低放堆顶
-          return false;
-        }
-      } else if (a_val.CompareGreaterThan(b_val) == CmpBool::CmpTrue) {
-        if (ordertype == OrderByType::ASC || ordertype == OrderByType::DEFAULT) {
-          return false;
-        } else if (ordertype == OrderByType::DESC) {
-          return true;
-        }
+        // 前k小，用大根堆，a<b时返回true,a优先级低放堆底
+        // 前k大，用小根堆，a<b时返回false，a优先级低放堆顶
+        return ordertype == OrderByType::ASC || ordertype == OrderByType::DEFAULT;
+      }
+      if (a_val.CompareGreaterThan(b_val) == CmpBool::CmpTrue) {
+        return ordertype == OrderByType::DESC;
       }
     }
     return true;
   };
 
   std::priority_queue<Tuple, std::vector<Tuple>, decltype(cmp)> heap(cmp);
-  heap_size = 0;
+  heap_size_ = 0;
 
   Tuple tuple;
   RID rid;
   while (child_executor_->Next(&tuple, &rid)) {
     heap.push(tuple);
-    ++heap_size;
+    ++heap_size_;
     if (heap.size() > plan_->GetN()) {
       heap.pop();
-      --heap_size;
+      --heap_size_;
     }
   }
 
   while (!heap.empty()) {
-    result.push_back(heap.top());
+    result_.push_back(heap.top());
     heap.pop();
   }
 }
 
 auto TopNExecutor::Next(Tuple *tuple, RID *rid) -> bool {
-  if (result.empty()) {
+  if (result_.empty()) {
     return false;
   }
 
   // ps:读结果的时候应该从堆底往堆顶读，如前k小的数用大根堆维护，堆顶应该是最大的，最后输出
-  *tuple = result.back();
+  *tuple = result_.back();
   *rid = tuple->GetRid();
-  result.pop_back();
+  result_.pop_back();
 
   return true;
 }
 
-auto TopNExecutor::GetNumInHeap() -> size_t { return heap_size; }
+auto TopNExecutor::GetNumInHeap() -> size_t { return heap_size_; }
 
 }  // namespace bustub

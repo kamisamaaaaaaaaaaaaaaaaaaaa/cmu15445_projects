@@ -21,8 +21,8 @@ AggregationExecutor::AggregationExecutor(ExecutorContext *exec_ctx, const Aggreg
     : AbstractExecutor(exec_ctx), aht_(plan->GetAggregates(), plan->GetAggregateTypes()), aht_iterator_(aht_.Begin()) {
   plan_ = plan;
   child_ = std::move(child);
-  cnt = 0;
-  has_out = false;
+  cnt_ = 0;
+  has_out_ = false;
 }
 
 void AggregationExecutor::Init() {
@@ -36,7 +36,7 @@ void AggregationExecutor::Init() {
   RID rid;
 
   while (child_->Next(&tuple, &rid)) {
-    cnt++;
+    cnt_++;
     aht_.InsertCombine(MakeAggregateKey(&tuple), MakeAggregateValue(&tuple));
   }
 
@@ -44,15 +44,15 @@ void AggregationExecutor::Init() {
 }
 
 auto AggregationExecutor::Next(Tuple *tuple, RID *rid) -> bool {
-  if (!cnt && !has_out) {
-    if (plan_->GetGroupBys().size() > 0) {
+  if (cnt_ == 0 && !has_out_) {
+    if (!plan_->GetGroupBys().empty()) {
       return false;
     }
 
     std::vector<Value> values;
-    auto aggregateTypes = plan_->GetAggregateTypes();
-    for (unsigned long i = 0; i < plan_->GetAggregates().size(); i++) {
-      if (aggregateTypes[i] == AggregationType::CountStarAggregate) {
+    auto aggregate_types = plan_->GetAggregateTypes();
+    for (size_t i = 0; i < plan_->GetAggregates().size(); i++) {
+      if (aggregate_types[i] == AggregationType::CountStarAggregate) {
         values.push_back(ValueFactory::GetIntegerValue(0));
       } else {
         values.push_back(ValueFactory::GetNullValueByType(TypeId::INTEGER));
@@ -61,7 +61,7 @@ auto AggregationExecutor::Next(Tuple *tuple, RID *rid) -> bool {
 
     *tuple = Tuple(values, &GetOutputSchema());
 
-    has_out = true;
+    has_out_ = true;
     return true;
   }
 
@@ -70,10 +70,10 @@ auto AggregationExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   }
 
   std::vector<Value> values;
-  for (auto x : aht_iterator_.Key().group_bys_) {
+  for (auto const &x : aht_iterator_.Key().group_bys_) {
     values.push_back(x);
   }
-  for (auto x : aht_iterator_.Val().aggregates_) {
+  for (auto const &x : aht_iterator_.Val().aggregates_) {
     values.push_back(x);
   }
 

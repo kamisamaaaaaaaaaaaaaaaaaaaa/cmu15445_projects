@@ -15,12 +15,12 @@ void SortExecutor::Init() {
   Tuple tuple;
   RID rid;
   while (child_executor_->Next(&tuple, &rid)) {
-    tuples.push_back(tuple);
+    tuples_.push_back(tuple);
   }
 
   auto order_bys = plan_->GetOrderBy();
 
-  std::sort(tuples.begin(), tuples.end(), [&](const Tuple &a, const Tuple &b) {
+  std::sort(tuples_.begin(), tuples_.end(), [&](const Tuple &a, const Tuple &b) {
     for (auto &x : order_bys) {
       auto express = x.second;
       auto a_val = express->Evaluate(&a, plan_->GetChildPlan()->OutputSchema());
@@ -28,32 +28,27 @@ void SortExecutor::Init() {
 
       auto ordertype = x.first;
       if (a_val.CompareLessThan(b_val) == CmpBool::CmpTrue) {
-        if (ordertype == OrderByType::ASC || ordertype == OrderByType::DEFAULT) {
-          return true;
-        } else if (ordertype == OrderByType::DESC) {
-          return false;
-        }
-      } else if (a_val.CompareGreaterThan(b_val) == CmpBool::CmpTrue) {
-        if (ordertype == OrderByType::ASC || ordertype == OrderByType::DEFAULT) {
-          return false;
-        } else if (ordertype == OrderByType::DESC) {
-          return true;
-        }
+        return ordertype == OrderByType::ASC || ordertype == OrderByType::DEFAULT;
+      }
+      if (a_val.CompareGreaterThan(b_val) == CmpBool::CmpTrue) {
+        return ordertype == OrderByType::DESC;
       }
     }
 
     return true;
   });
 
-  ptr = 0;
+  ptr_ = 0;
 }
 
 auto SortExecutor::Next(Tuple *tuple, RID *rid) -> bool {
-  if (ptr == tuples.size()) return false;
+  if (ptr_ == tuples_.size()) {
+    return false;
+  }
 
-  *tuple = tuples[ptr];
+  *tuple = tuples_[ptr_];
   *rid = tuple->GetRid();
-  ptr++;
+  ptr_++;
 
   return true;
 }

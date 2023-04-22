@@ -11,6 +11,7 @@
 #include "concurrency/transaction.h"
 #include "execution/expressions/abstract_expression.h"
 #include "execution/plans/abstract_plan.h"
+#include "execution/plans/filter_plan.h"
 
 namespace bustub {
 
@@ -105,14 +106,37 @@ class Optimizer {
    */
   auto EstimatedCardinality(const std::string &table_name) -> std::optional<size_t>;
 
-   void GetLeftAndRightExpreForHashJoin(const AbstractExpressionRef &expr,
-                                       std::vector<AbstractExpressionRef> &left_key_expressions,
-                                       std::vector<AbstractExpressionRef> &right_key_expressions);
+  auto HashJoinOptimize(const AbstractPlanNodeRef &plan, std::vector<AbstractExpressionRef> &pd_expr, bool &success)
+      -> AbstractPlanNodeRef;
 
-  void UpdateLeftAndRightExpreFromChildForHashJoin(const AbstractExpressionRef &left_express,
-                                                   const AbstractExpressionRef &right_express,
-                                                   std::vector<AbstractExpressionRef> &left_key_expressions,
-                                                   std::vector<AbstractExpressionRef> &right_key_expressions);
+  void GetUsefulExpr(std::vector<AbstractExpressionRef> &useful_expr,
+                     std::vector<std::vector<AbstractExpressionRef>> &new_pd_expr,
+                     std::vector<AbstractExpressionRef> &pd_expr, uint32_t l_cols);
+
+  auto ParseExpr(const AbstractExpressionRef &expr, std::vector<std::vector<AbstractExpressionRef>> &new_pd_expr,
+                 std::vector<std::vector<AbstractExpressionRef>> &key_expr, uint32_t l_cols) -> bool;
+
+  void GetKeyExprFromPushDown(const AbstractExpressionRef &expr,
+                              std::vector<std::vector<AbstractExpressionRef>> &key_expr, uint32_t l_cols);
+  void GetKeyExprFromOwnExpr(const AbstractExpressionRef &expr,
+                             std::vector<std::vector<AbstractExpressionRef>> &key_expr,
+                             std::vector<std::vector<AbstractExpressionRef>> &new_pd_expr);
+
+  auto GetFilterExpress(std::vector<AbstractExpressionRef> &exprs) -> AbstractExpressionRef;
+
+  auto CheckFilterExpr(const AbstractExpressionRef &expr) -> bool;
+
+  auto BelongToLeftFromPushDown(const AbstractExpressionRef &expr, uint32_t l_cols) -> bool;
+
+  auto BelongToLeftFromOwnExpr(const AbstractExpressionRef &expr) -> bool;
+
+  auto GetExprForRightPushDown(const AbstractExpressionRef &expr, uint32_t l_cols) -> AbstractExpressionRef;
+
+  auto CheckConstant(const AbstractExpressionRef &expr) -> bool;
+
+  auto CheckColumnValue(const AbstractExpressionRef &expr) -> bool;
+
+  auto CheckOtherType(const AbstractExpressionRef &expr) -> bool;
 
   /** Catalog will be used during the planning process. USERS SHOULD ENSURE IT OUTLIVES
    * OPTIMIZER, otherwise it's a dangling reference.

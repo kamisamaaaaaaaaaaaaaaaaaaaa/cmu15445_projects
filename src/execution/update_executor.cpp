@@ -29,12 +29,14 @@ void UpdateExecutor::Init() {
   table_info_ = catalog->GetTable(table_oid);
   auto table_name = table_info_->name_;
   index_infos_ = catalog->GetTableIndexes(table_name);
-  has_out = false;
+  has_out_ = false;
   child_executor_->Init();
 }
 
 auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
-  if (has_out) return false;
+  if (has_out_) {
+    return false;
+  }
 
   int nums = 0;
   while (child_executor_->Next(tuple, rid)) {
@@ -68,10 +70,10 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   }
 
   std::vector<Value> values{};
-  values.push_back(Value(INTEGER, nums));
+  values.emplace_back(Value(INTEGER, nums));
   *tuple = Tuple(values, &GetOutputSchema());
 
-  has_out = true;
+  has_out_ = true;
 
   return true;
 }
