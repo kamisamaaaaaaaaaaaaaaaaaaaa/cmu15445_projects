@@ -87,7 +87,7 @@ class Optimizer {
   /** @brief check if the index can be matched */
   auto MatchIndex(const std::string &table_name, uint32_t index_key_idx)
       -> std::optional<std::tuple<index_oid_t, std::string>>;
-  auto MatchTwoKeysIndex(const std::string &table_name, std::vector<uint32_t> index_key_idxs)
+  auto MatchTwoKeysIndex(const std::string &table_name, const std::vector<uint32_t> &index_key_idxs)
       -> std::optional<std::tuple<index_oid_t, std::string>>;
 
   /**

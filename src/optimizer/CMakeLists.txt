@@ -12,7 +12,7 @@ add_library(
         optimizer_internal.cpp
         order_by_index_scan.cpp
         sort_limit_as_topn.cpp
-        select_index_scan.cpp)
+  )
 
 set(ALL_OBJECT_FILES
         ${ALL_OBJECT_FILES} $<TARGET_OBJECTS:bustub_optimizer>
