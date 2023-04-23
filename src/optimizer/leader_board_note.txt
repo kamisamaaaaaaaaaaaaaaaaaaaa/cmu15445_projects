@@ -1,0 +1,21 @@
+leaderboard_1
+1、可以支持<和<=，叶子从begin()扫到begin(key)即可，这里只实现了>=,>,=。往左扫和往右扫感觉只取决于第一个关键字
+对应的符号，因为对于多关键字排序中只有第一个关键字是全局有序的，其它关键字是前关键字相同的一段才有序，而不是全局有序
+因此不能通过后面的关键字来确定往左扫还是往右扫。因此该优化的适用条件应该为存在第一关键字的过滤条件，其他关键字条件可以没有，
+如果没有设成-INF即可（应该吧）
+2、由于lab只支持单关键字和双关键字，matchindex处理的比较简单，若为多关键字的话，需要解析表达式树，提取关键字
+3、若过滤条件中同时存在关键字和非关键字的话，可以先按关键字的条件扫b+树得到tuples，再用非关键字条件过滤
+
+leaderboard_2
+表达式应该还可以支持以下形式：
+1、对于=来说：若干来自同一table的列 （+,-）若干个const = 若干来自另一个table的列 （+,-）若干个const，可用于hashjoin
+若某一侧存在不同table的列的运算，需要移项处理，把相同表的列放在一侧，用于哈希
+2、若干来自同一table的列 （+,-）若干个const cmp 来自同一table的列 （+,-）若干个const，可以用于某个table的filter
+3、对于若干来自同一table的列 （+,-）若干个const （非等于cmp） 若干来自另一个table的列 （+,-）若干个const，不可用于hashjoin
+   但可以用于hashjoin后的过滤
+
+leaderboard_3
+1、恒真恒假表达式还支持 const+const... cmp const+const...
+2、projection支持的表达式还可以colval和const运算组合，以及单const以及const和const的组合，这里只处理了colval和colval的组合
+3、注意agg_plan只会输出group_bys+aggs（其中group_bys必须输出，excutor是这么设计的，aggs只支持min,max,sum,count），
+   若不想要group_bys，上面的projection会过滤掉，对于max(v1)+max(v2)+..这种形式也是由agg上面的project处理的
