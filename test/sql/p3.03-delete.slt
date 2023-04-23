@@ -83,6 +83,7 @@ select * from t1;
 1 🥰🥰 11
 2 🥰🥰🥰 12
 
+
 # Delete all
 query
 delete from t1;
