@@ -95,6 +95,7 @@ class Optimizer {
    */
   auto OptimizeSortLimitAsTopN(const AbstractPlanNodeRef &plan) -> AbstractPlanNodeRef;
 
+  // leaderboard-1
   auto OptimizeSelectIndexScan(const AbstractPlanNodeRef &plan) -> AbstractPlanNodeRef;
 
   /**
@@ -106,6 +107,7 @@ class Optimizer {
    */
   auto EstimatedCardinality(const std::string &table_name) -> std::optional<size_t>;
 
+  // leaderboard-2 (Hashjoin)
   auto HashJoinOptimize(const AbstractPlanNodeRef &plan, std::vector<AbstractExpressionRef> &pd_expr, bool &success)
       -> AbstractPlanNodeRef;
 
@@ -137,6 +139,14 @@ class Optimizer {
   auto CheckColumnValue(const AbstractExpressionRef &expr) -> bool;
 
   auto CheckOtherType(const AbstractExpressionRef &expr) -> bool;
+
+  // leaderboard-3
+  auto OptimizeColumnPruning(const AbstractPlanNodeRef &plan) -> AbstractPlanNodeRef;
+  void GetOutputCols(const std::vector<AbstractExpressionRef> &exprs, std::vector<uint32_t> &output_cols);
+  auto GetSchema(const SchemaRef &schema, std::vector<uint32_t> &output_cols, size_t group_by_nums) -> SchemaRef;
+  auto GetFilterRes(const AbstractExpressionRef &expr) -> int;
+  void ParseExprForColumnPruning(const AbstractExpressionRef &expr, std::vector<uint32_t> &output_cols);
+  auto CheckArithMetic(const AbstractExpressionRef &expr) -> bool;
 
   /** Catalog will be used during the planning process. USERS SHOULD ENSURE IT OUTLIVES
    * OPTIMIZER, otherwise it's a dangling reference.
