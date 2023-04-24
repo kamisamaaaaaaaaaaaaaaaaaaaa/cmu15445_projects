@@ -11,7 +11,21 @@ leaderboard_2
 1、对于=来说：若干来自同一table的列 （+,-）若干个const = 若干来自另一个table的列 （+,-）若干个const，可用于hashjoin
 若某一侧存在不同table的列的运算，需要移项处理，把相同表的列放在一侧，用于哈希
 2、若干来自同一table的列 （+,-）若干个const cmp 来自同一table的列 （+,-）若干个const，可以用于某个table的filter
-3、对于若干来自同一table的列 （+,-）若干个const （非等于cmp） 若干来自另一个table的列 （+,-）若干个const，不可用于hashjoin
+
+具体大概为：
+a、写一个函数来判断表达式包含哪些类型的变量{左表，右表，常量}，返回值是一个unordered_set，递归处理即可,如果是const返回{常量}。
+如果是colval，判断来自左表还是右表返回{左表}或者{右表}，对于(+,-)来说递归两边，得到两边返回值后取并集
+b、分类讨论：对于 expr_1 cmp expr_2来说
+(1)若expr_1和expr_2都是const组合，此时该表达式恒真或恒假，若恒假直接用空表替换，若恒真，如果有其它条件的话忽略该条件
+   如果无其它过滤条件的话则不优化，保持原来的nlj
+(2)若expr_1存在左右表混合，或者expr_2存在左右表混合，此时不优化（移向比较麻烦，假设不搞）
+(3)若expr_1和expr_2的类型变量合起来，为某个表或者某个表加常量，则往下push（有可能是过滤条件，也有可能是下表的join条件）
+(4)若expr_1是某个表或者某个表加常量，expr_2是另一个表或者另一个表加常量，且cmp为等于号，此时用于更新key_expr，
+   若cmp不是等于号，不优化
+上述条件更新到parseexpr和GetUseFulFromPushDown即可,push的时候记得更新colval的列号
+
+
+3、对于若干来自同一table的列 （+,-）若干个const （非等于的cmp） 若干来自另一个table的列 （+,-）若干个const，不可用于hashjoin
    但可以用于hashjoin后的过滤
 
 leaderboard_3
