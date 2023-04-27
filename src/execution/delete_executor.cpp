@@ -44,6 +44,10 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     tuplemeta.is_deleted_ = true;
     table_info_->table_->UpdateTupleMeta(tuplemeta, *rid);
 
+    auto twr = TableWriteRecord{table_info_->oid_, *rid, table_info_->table_.get()};
+    twr.wtype_ = WType::DELETE;
+    exec_ctx_->GetTransaction()->GetWriteSet()->push_back(twr);
+
     nums++;
 
     for (auto &x : index_infos_) {

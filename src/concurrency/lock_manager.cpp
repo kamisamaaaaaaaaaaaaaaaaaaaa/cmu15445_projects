@@ -23,13 +23,15 @@ auto LockManager::CheckTableOwnLock(Transaction *txn, LockMode lock_mode, const 
   auto lrq = table_lock_map_[oid];
   table_lock_map_latch_.unlock();
 
+  lrq->latch_.lock();
   for (auto iter = lrq->request_queue_.begin(); iter != lrq->request_queue_.end(); iter++) {
     auto lr = *iter;
     if (lr->granted_ && lr->txn_id_ == txn->GetTransactionId() && lr->lock_mode_ == lock_mode) {
+      lrq->latch_.unlock();
       return true;
     }
   }
-
+  lrq->latch_.unlock();
   return false;
 }
 
@@ -456,18 +458,20 @@ auto LockManager::UnlockRow(Transaction *txn, const table_oid_t &oid, const RID 
   for (auto iter = lrq->request_queue_.begin(); iter != lrq->request_queue_.end(); iter++) {
     auto lr = *iter;
     if (lr->granted_ && lr->txn_id_ == txn->GetTransactionId()) {
-      auto iso_level = txn->GetIsolationLevel();
-      if (iso_level == IsolationLevel::REPEATABLE_READ) {
-        if (lr->lock_mode_ == LockMode::SHARED || lr->lock_mode_ == LockMode::EXCLUSIVE) {
-          txn->SetState(TransactionState::SHRINKING);
-        }
-      } else if (iso_level == IsolationLevel::READ_COMMITTED) {
-        if (lr->lock_mode_ == LockMode::EXCLUSIVE) {
-          txn->SetState(TransactionState::SHRINKING);
-        }
-      } else if (iso_level == IsolationLevel::READ_UNCOMMITTED) {
-        if (lr->lock_mode_ == LockMode::EXCLUSIVE) {
-          txn->SetState(TransactionState::SHRINKING);
+      if (!force) {
+        auto iso_level = txn->GetIsolationLevel();
+        if (iso_level == IsolationLevel::REPEATABLE_READ) {
+          if (lr->lock_mode_ == LockMode::SHARED || lr->lock_mode_ == LockMode::EXCLUSIVE) {
+            txn->SetState(TransactionState::SHRINKING);
+          }
+        } else if (iso_level == IsolationLevel::READ_COMMITTED) {
+          if (lr->lock_mode_ == LockMode::EXCLUSIVE) {
+            txn->SetState(TransactionState::SHRINKING);
+          }
+        } else if (iso_level == IsolationLevel::READ_UNCOMMITTED) {
+          if (lr->lock_mode_ == LockMode::EXCLUSIVE) {
+            txn->SetState(TransactionState::SHRINKING);
+          }
         }
       }
 
@@ -493,9 +497,9 @@ void LockManager::UnlockAll() {
   for (auto &[k, v] : row_lock_map_) {
     for (auto iter = v->request_queue_.begin(); iter != v->request_queue_.end(); iter++) {
       auto lr = *iter;
-      if (lr->granted_) {
-        ReomoveTxnRowLockSet(txn_manager_->GetTransaction(lr->txn_id_), lr->lock_mode_, lr->oid_, lr->rid_);
-      }
+      // if (lr->granted_) {
+      //   ReomoveTxnRowLockSet(txn_manager_->GetTransaction(lr->txn_id_), lr->lock_mode_, lr->oid_, lr->rid_);
+      // }
       delete lr;
     }
   }
@@ -503,9 +507,9 @@ void LockManager::UnlockAll() {
   for (auto &[k, v] : table_lock_map_) {
     for (auto iter = v->request_queue_.begin(); iter != v->request_queue_.end(); iter++) {
       auto lr = *iter;
-      if (lr->granted_) {
-        RemoveFromTxnTableLockSet(txn_manager_->GetTransaction(lr->txn_id_), lr->lock_mode_, lr->oid_);
-      }
+      // if (lr->granted_) {
+      //   RemoveFromTxnTableLockSet(txn_manager_->GetTransaction(lr->txn_id_), lr->lock_mode_, lr->oid_);
+      // }
       delete lr;
     }
   }

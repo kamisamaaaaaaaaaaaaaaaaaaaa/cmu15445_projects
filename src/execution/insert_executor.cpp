@@ -26,6 +26,19 @@ InsertExecutor::InsertExecutor(ExecutorContext *exec_ctx, const InsertPlanNode *
 void InsertExecutor::Init() {
   auto catalog = exec_ctx_->GetCatalog();
   auto table_oid = plan_->TableOid();
+
+  try {
+    bool success = exec_ctx_->GetLockManager()->LockTable(
+        exec_ctx_->GetTransaction(), bustub::LockManager::LockMode::INTENTION_EXCLUSIVE, table_oid);
+    if (!success) {
+      // const std::string info = "Insert Table IX Lock Fail";
+      // throw ExecutionException(info);
+    }
+  } catch (TransactionAbortException &e) {
+    // const std::string info = "Insert Table IX Lock Fail";
+    // throw ExecutionException(info);
+  }
+
   table_info_ = catalog->GetTable(table_oid);
   auto table_name = table_info_->name_;
   index_infos_ = catalog->GetTableIndexes(table_name);
@@ -46,6 +59,10 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     if (rid_optional.has_value()) {
       *rid = rid_optional.value();
       nums++;
+
+      auto twr = TableWriteRecord{table_info_->oid_, *rid, table_info_->table_.get()};
+      twr.wtype_ = WType::INSERT;
+      exec_ctx_->GetTransaction()->GetWriteSet()->push_back(twr);
 
       for (auto &x : index_infos_) {
         Tuple partial_tuple =

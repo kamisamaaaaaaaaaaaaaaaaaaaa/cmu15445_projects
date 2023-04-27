@@ -31,6 +31,21 @@ void TransactionManager::Commit(Transaction *txn) {
 
 void TransactionManager::Abort(Transaction *txn) {
   /* TODO: revert all the changes in write set */
+  while (!txn->GetWriteSet()->empty()) {
+    auto twr = txn->GetWriteSet()->back();
+
+    if (twr.wtype_ == WType::INSERT) {
+      auto tuple_meta = twr.table_heap_->GetTupleMeta(twr.rid_);
+      tuple_meta.is_deleted_ = true;
+      twr.table_heap_->UpdateTupleMeta(tuple_meta, twr.rid_);
+    } else if (twr.wtype_ == WType::DELETE) {
+      auto tuple_meta = twr.table_heap_->GetTupleMeta(twr.rid_);
+      tuple_meta.is_deleted_ = false;
+      twr.table_heap_->UpdateTupleMeta(tuple_meta, twr.rid_);
+    }
+
+    txn->GetWriteSet()->pop_back();
+  }
 
   ReleaseLocks(txn);
 
