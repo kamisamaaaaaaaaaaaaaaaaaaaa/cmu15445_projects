@@ -117,4 +117,5 @@ TEST(LockManagerDeadlockDetectionTest, BasicDeadlockDetectionTest) {
   delete txn0;
   delete txn1;
 }
+
 }  // namespace bustub

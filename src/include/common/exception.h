@@ -109,6 +109,8 @@ class Exception : public std::runtime_error {
         return "Out of Memory";
       case ExceptionType::NOT_IMPLEMENTED:
         return "Not implemented";
+      case ExceptionType::EXECUTION:
+        return "EXECUTION";
       default:
         return "Unknown";
     }
