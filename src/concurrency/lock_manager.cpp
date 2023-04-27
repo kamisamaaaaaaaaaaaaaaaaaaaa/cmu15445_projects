@@ -110,6 +110,7 @@ void LockManager::ReomoveTxnRowLockSet(Transaction *txn, LockMode lock_mode, con
 auto LockManager::CanTxnTakeLock(Transaction *txn, LockMode lock_mode,
                                  std::shared_ptr<LockRequestQueue> &lock_request_queue) -> bool {
   if (txn->GetState() == TransactionState::ABORTED) {
+    // printf("%d abort\n", txn->GetTransactionId());
     for (auto iter = lock_request_queue->request_queue_.begin(); iter != lock_request_queue->request_queue_.end();
          iter++) {
       auto lr = *iter;
@@ -119,6 +120,7 @@ auto LockManager::CanTxnTakeLock(Transaction *txn, LockMode lock_mode,
         break;
       }
     }
+    // printf("ck\n");
 
     return true;
   }
@@ -195,6 +197,7 @@ auto LockManager::CheckAllRowsUnlock(Transaction *txn, const table_oid_t &oid) -
   return true;
 }
 
+// directly为true代表直接对表加锁，false代表对行加锁时需要先对表加锁
 auto LockManager::LockTableDirectlyOrNot(Transaction *txn, LockMode lock_mode, const table_oid_t &oid, bool directly)
     -> bool {
   // 判断lockmode和isolevel以及txn_state是否兼容
@@ -277,8 +280,10 @@ auto LockManager::LockTableDirectlyOrNot(Transaction *txn, LockMode lock_mode, c
   while (!CanTxnTakeLock(txn, lock_mode, lrq)) {
     lrq->cv_.wait(lock);
   }
+  // printf("id: %d ck2\n", txn->GetTransactionId());
 
   if (txn->GetState() == TransactionState::ABORTED) {
+    // printf("txn abort id: %d\n", txn->GetTransactionId());
     lrq->cv_.notify_all();
     return false;
   }
@@ -296,7 +301,6 @@ auto LockManager::UnlockTable(Transaction *txn, const table_oid_t &oid) -> bool 
   if (!CheckAllRowsUnlock(txn, oid)) {
     txn->SetState(TransactionState::ABORTED);
     throw TransactionAbortException(txn->GetTransactionId(), AbortReason::TABLE_UNLOCKED_BEFORE_UNLOCKING_ROWS);
-    return false;
   }
 
   table_lock_map_latch_.lock();
@@ -431,9 +435,12 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
   }
 
   if (txn->GetState() == TransactionState::ABORTED) {
+    // printf("txn abort id: %d\n", txn->GetTransactionId());
     lrq->cv_.notify_all();
     return false;
   }
+
+  // printf("id %d get row lock\n", txn->GetTransactionId());
 
   AddIntoTxnRowLockSet(txn, lock_mode, oid, rid);
 
@@ -486,6 +493,9 @@ void LockManager::UnlockAll() {
   for (auto &[k, v] : row_lock_map_) {
     for (auto iter = v->request_queue_.begin(); iter != v->request_queue_.end(); iter++) {
       auto lr = *iter;
+      if (lr->granted_) {
+        ReomoveTxnRowLockSet(txn_manager_->GetTransaction(lr->txn_id_), lr->lock_mode_, lr->oid_, lr->rid_);
+      }
       delete lr;
     }
   }
@@ -493,28 +503,192 @@ void LockManager::UnlockAll() {
   for (auto &[k, v] : table_lock_map_) {
     for (auto iter = v->request_queue_.begin(); iter != v->request_queue_.end(); iter++) {
       auto lr = *iter;
+      if (lr->granted_) {
+        RemoveFromTxnTableLockSet(txn_manager_->GetTransaction(lr->txn_id_), lr->lock_mode_, lr->oid_);
+      }
       delete lr;
     }
   }
   // You probably want to unlock all table and txn locks here.
 }
 
-void LockManager::AddEdge(txn_id_t t1, txn_id_t t2) {}
+void LockManager::AddEdge(txn_id_t t1, txn_id_t t2) { waits_for[t1].insert(t2); }
 
-void LockManager::RemoveEdge(txn_id_t t1, txn_id_t t2) {}
+void LockManager::RemoveEdge(txn_id_t t1, txn_id_t t2) { waits_for[t1].erase(t2); }
 
-auto LockManager::HasCycle(txn_id_t *txn_id) -> bool { return false; }
+auto LockManager::HasCycle(txn_id_t txn_id) -> bool {
+  has_search[txn_id] = true;
+  stk.push_back(txn_id);
+  in_stk[txn_id] = true;
+
+  for (auto x : waits_for[txn_id]) {
+    if (!has_search[x]) {
+      if (HasCycle(x)) return true;
+    } else if (in_stk[x]) {
+      return true;
+    }
+  }
+
+  stk.pop_back();
+  in_stk[txn_id] = false;
+
+  return false;
+}
 
 auto LockManager::GetEdgeList() -> std::vector<std::pair<txn_id_t, txn_id_t>> {
   std::vector<std::pair<txn_id_t, txn_id_t>> edges(0);
+  for (auto &[k, v] : waits_for) {
+    for (auto x : v) {
+      edges.push_back({k, x});
+    }
+  }
   return edges;
+}
+
+void LockManager::build_graph() {
+  table_lock_map_latch_.lock();
+  for (auto &[k, v] : table_lock_map_) {
+    v->latch_.lock();
+    for (auto iter1 = v->request_queue_.begin(); iter1 != v->request_queue_.end(); iter1++) {
+      for (auto iter2 = v->request_queue_.begin(); iter2 != v->request_queue_.end(); iter2++) {
+        auto lr1 = *iter1;
+        auto lr2 = *iter2;
+        if (txn_manager_->GetTransaction(lr1->txn_id_)->GetState() != TransactionState::ABORTED &&
+            txn_manager_->GetTransaction(lr2->txn_id_)->GetState() != TransactionState::ABORTED && !lr1->granted_ &&
+            lr2->granted_ && !LockCompatible(lr1->lock_mode_, lr2->lock_mode_)) {
+          AddEdge(lr1->txn_id_, lr2->txn_id_);
+        }
+      }
+    }
+    v->latch_.unlock();
+  }
+  table_lock_map_latch_.unlock();
+
+  row_lock_map_latch_.lock();
+  for (auto &[k, v] : row_lock_map_) {
+    v->latch_.lock();
+    for (auto iter1 = v->request_queue_.begin(); iter1 != v->request_queue_.end(); iter1++) {
+      for (auto iter2 = v->request_queue_.begin(); iter2 != v->request_queue_.end(); iter2++) {
+        auto lr1 = *iter1;
+        auto lr2 = *iter2;
+        if (!lr1->granted_ && lr2->granted_ && !LockCompatible(lr1->lock_mode_, lr2->lock_mode_)) {
+          AddEdge(lr1->txn_id_, lr2->txn_id_);
+        }
+      }
+    }
+    v->latch_.unlock();
+  }
+  row_lock_map_latch_.unlock();
+}
+
+// 移除边和请求
+void LockManager::RemoveAllAboutAbortTxn(txn_id_t abort_id) {
+  // 移除请求
+  table_lock_map_latch_.lock();
+  for (auto &[k, v] : table_lock_map_) {
+    v->latch_.lock();
+
+    for (auto iter = v->request_queue_.begin(); iter != v->request_queue_.end();) {
+      auto lr = *iter;
+      if (lr->txn_id_ == abort_id) {
+        v->request_queue_.erase(iter++);
+        if (lr->granted_) {
+          RemoveFromTxnTableLockSet(txn_manager_->GetTransaction(abort_id), lr->lock_mode_, lr->oid_);
+          v->cv_.notify_all();
+        }
+        delete lr;
+      } else {
+        iter++;
+      }
+    }
+
+    v->latch_.unlock();
+  }
+  table_lock_map_latch_.unlock();
+
+  row_lock_map_latch_.lock();
+  for (auto &[k, v] : row_lock_map_) {
+    v->latch_.lock();
+
+    for (auto iter = v->request_queue_.begin(); iter != v->request_queue_.end();) {
+      auto lr = *iter;
+      if (lr->txn_id_ == abort_id) {
+        v->request_queue_.erase(iter++);
+        if (lr->granted_) {
+          ReomoveTxnRowLockSet(txn_manager_->GetTransaction(abort_id), lr->lock_mode_, lr->oid_, lr->rid_);
+          v->cv_.notify_all();
+        }
+        delete lr;
+      } else {
+        iter++;
+      }
+    }
+    v->latch_.unlock();
+  }
+  row_lock_map_latch_.unlock();
+
+  // 删除边
+  waits_for.erase(abort_id);
+
+  for (auto iter = waits_for.begin(); iter != waits_for.end();) {
+    if ((*iter).second.count(abort_id)) {
+      RemoveEdge((*iter).first, abort_id);
+    }
+    if ((*iter).second.empty()) {
+      waits_for.erase(iter++);
+    } else {
+      iter++;
+    }
+  }
+}
+
+void LockManager::print_graph() {
+  for (auto &[k, v] : waits_for) {
+    std::cout << k << "-> ";
+    for (auto x : v) {
+      std::cout << x;
+    }
+    std::cout << std::endl;
+  }
 }
 
 void LockManager::RunCycleDetection() {
   while (enable_cycle_detection_) {
     std::this_thread::sleep_for(cycle_detection_interval);
     {  // TODO(students): detect deadlock
+
+      build_graph();
+      // printf("initial graph\n");
+      // print_graph();
+
+      while (true) {
+        stk.clear();
+        in_stk.clear();
+        has_search.clear();
+
+        bool has_cy = false;
+        for (auto &[k, v] : waits_for) {
+          if (!has_search[k] && HasCycle(k)) {
+            has_cy = true;
+
+            auto abort_tid = stk.back();
+            // printf("abort_id:%d\n", abort_tid);
+            txn_manager_->GetTransaction(abort_tid)->SetState(TransactionState::ABORTED);
+            RemoveAllAboutAbortTxn(abort_tid);
+            // printf("graph after remove\n");
+            // print_graph();
+            break;
+          }
+        }
+
+        // printf("has_cy:%d\n", has_cy);
+        if (!has_cy) {
+          break;
+        }
+      }
     }
+
+    waits_for.clear();
   }
 }
 

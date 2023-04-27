@@ -15,8 +15,11 @@
 #include <algorithm>
 #include <condition_variable>  // NOLINT
 #include <list>
+#include <map>
 #include <memory>
 #include <mutex>  // NOLINT
+#include <set>
+#include <stack>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -295,7 +298,7 @@ class LockManager {
    * @param[out] txn_id if the graph has a cycle, will contain the newest transaction ID
    * @return false if the graph has no cycle, otherwise stores the newest transaction ID in the cycle to txn_id
    */
-  auto HasCycle(txn_id_t *txn_id) -> bool;
+  auto HasCycle(txn_id_t txn_id) -> bool;
 
   /**
    * @return all edges in current waits_for graph
@@ -312,16 +315,12 @@ class LockManager {
  private:
   /** Spring 2023 */
   /* You are allowed to modify all functions below. */
-  auto UpgradeLockTable(Transaction *txn, LockMode lock_mode, const table_oid_t &oid) -> bool;
-  auto UpgradeLockRow(Transaction *txn, LockMode lock_mode, const table_oid_t &oid, const RID &rid) -> bool;
-  auto AreLocksCompatible(LockMode l1, LockMode l2) -> bool;
+
   auto CanTxnTakeLock(Transaction *txn, LockMode lock_mode, std::shared_ptr<LockRequestQueue> &lock_request_queue)
       -> bool;
-  void GrantNewLocksIfPossible(LockRequestQueue *lock_request_queue);
+
   auto CanLockUpgrade(LockMode curr_lock_mode, LockMode requested_lock_mode) -> bool;
-  auto CheckAppropriateLockOnTable(Transaction *txn, const table_oid_t &oid, LockMode row_lock_mode) -> bool;
-  auto FindCycle(txn_id_t source_txn, std::vector<txn_id_t> &path, std::unordered_set<txn_id_t> &on_path,
-                 std::unordered_set<txn_id_t> &visited, txn_id_t *abort_txn_id) -> bool;
+
   void UnlockAll();
   auto LockCompatible(LockMode mode1, LockMode mode2) -> bool;
   void AddIntoTxnTableLockSet(Transaction *txn, LockMode lock_mode, const table_oid_t &oid);
@@ -331,6 +330,9 @@ class LockManager {
   auto CheckTableOwnLock(Transaction *txn, LockMode lock_mode, const table_oid_t &oid) -> bool;
   auto CheckAllRowsUnlock(Transaction *txn, const table_oid_t &oid) -> bool;
   auto LockTableDirectlyOrNot(Transaction *txn, LockMode lock_mode, const table_oid_t &oid, bool directly) -> bool;
+  void build_graph();
+  void RemoveAllAboutAbortTxn(txn_id_t abort_id);
+  void print_graph();
 
   /** Structure that holds lock requests for a given table oid */
   std::unordered_map<table_oid_t, std::shared_ptr<LockRequestQueue>> table_lock_map_;
@@ -345,7 +347,11 @@ class LockManager {
   std::atomic<bool> enable_cycle_detection_;
   std::thread *cycle_detection_thread_;
   /** Waits-for graph representation. */
-  std::unordered_map<txn_id_t, std::vector<txn_id_t>> waits_for_;
+  // std::unordered_map<txn_id_t, std::vector<txn_id_t>> waits_for_;
+  std::map<txn_id_t, std::set<txn_id_t>> waits_for;
+  std::vector<txn_id_t> stk;
+  std::unordered_map<txn_id_t, bool> in_stk;
+  std::unordered_map<txn_id_t, bool> has_search;
   std::mutex waits_for_latch_;
 };
 
