@@ -243,7 +243,8 @@ auto LockManager::LockTableDirectlyOrNot(Transaction *txn, LockMode lock_mode, c
     if (lr->txn_id_ == txn->GetTransactionId()) {
       if (lr->lock_mode_ == lock_mode) {
         // 重复的锁
-        return false;
+        // printf("重复的锁\n");
+        return true;
       }
       if (lrq->upgrading_ != INVALID_TXN_ID) {
         if (!directly) {
@@ -353,6 +354,7 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
   auto txn_state = txn->GetState();
   auto iso_level = txn->GetIsolationLevel();
   if (txn_state == TransactionState::COMMITTED || txn_state == TransactionState::ABORTED) {
+    printf("err1\n");
     return false;
   }
 
@@ -377,6 +379,7 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
     if (!LockTableDirectlyOrNot(txn, LockMode::INTENTION_SHARED, oid, false) &&
         !LockTableDirectlyOrNot(txn, LockMode::SHARED, oid, false) &&
         !LockTableDirectlyOrNot(txn, LockMode::SHARED_INTENTION_EXCLUSIVE, oid, false)) {
+      printf("err2\n");
       return false;
     }
   } else if (lock_mode == LockMode::EXCLUSIVE && !CheckTableOwnLock(txn, LockMode::INTENTION_EXCLUSIVE, oid) &&
@@ -385,6 +388,7 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
     if (!LockTableDirectlyOrNot(txn, LockMode::INTENTION_EXCLUSIVE, oid, false) &&
         !LockTableDirectlyOrNot(txn, LockMode::EXCLUSIVE, oid, false) &&
         !LockTableDirectlyOrNot(txn, LockMode::SHARED_INTENTION_EXCLUSIVE, oid, false)) {
+      printf("err3\n");
       return false;
     }
   }
@@ -405,7 +409,7 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
     if (lr->txn_id_ == txn->GetTransactionId()) {
       if (lr->lock_mode_ == lock_mode) {
         // 重复的锁
-        return false;
+        return true;
       }
       if (lrq->upgrading_ != INVALID_TXN_ID) {
         // 抛出 UPGRADE_CONFLICT 异常
@@ -439,6 +443,7 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
   if (txn->GetState() == TransactionState::ABORTED) {
     // printf("txn abort id: %d\n", txn->GetTransactionId());
     lrq->cv_.notify_all();
+    printf("err4\n");
     return false;
   }
 

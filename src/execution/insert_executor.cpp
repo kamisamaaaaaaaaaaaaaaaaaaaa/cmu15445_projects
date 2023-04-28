@@ -31,12 +31,12 @@ void InsertExecutor::Init() {
     bool success = exec_ctx_->GetLockManager()->LockTable(
         exec_ctx_->GetTransaction(), bustub::LockManager::LockMode::INTENTION_EXCLUSIVE, table_oid);
     if (!success) {
-      // const std::string info = "Insert Table IX Lock Fail";
-      // throw ExecutionException(info);
+      const std::string info = "Insert Table IX Lock Fail";
+      throw ExecutionException(info);
     }
   } catch (TransactionAbortException &e) {
-    // const std::string info = "Insert Table IX Lock Fail";
-    // throw ExecutionException(info);
+    const std::string info = "Insert Table IX Lock Fail";
+    throw ExecutionException(info);
   }
 
   table_info_ = catalog->GetTable(table_oid);

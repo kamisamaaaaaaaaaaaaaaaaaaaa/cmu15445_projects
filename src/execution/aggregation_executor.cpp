@@ -31,6 +31,8 @@ void AggregationExecutor::Init() {
 
   child_->Init();
   aht_.Clear();
+  has_out_ = false;
+  cnt_ = 0;
 
   Tuple tuple;
   RID rid;

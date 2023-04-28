@@ -285,6 +285,7 @@ auto main(int argc, char **argv) -> int {
               auto txn = bustub->txn_manager_->Begin(nullptr, bustub::IsolationLevel::REPEATABLE_READ);
 
               std::string query = fmt::format("DELETE FROM nft WHERE id = {}", nft_id);
+              // std::cout << query << std::endl;
               if (!bustub->ExecuteSqlTxn(query, writer, txn)) {
                 txn_success = false;
               }
@@ -295,11 +296,13 @@ auto main(int argc, char **argv) -> int {
               }
 
               if (!txn_success) {
+                // printf("Delete fail\n");
                 bustub->txn_manager_->Abort(txn);
                 metrics.TxnAborted();
                 delete txn;
               } else {
                 query = fmt::format("INSERT INTO nft VALUES ({}, {})", nft_id, terrier_id);
+                // std::cout << query << std::endl;
                 if (!bustub->ExecuteSqlTxn(query, writer, txn)) {
                   txn_success = false;
                 }
@@ -310,6 +313,7 @@ auto main(int argc, char **argv) -> int {
                 }
 
                 if (!txn_success) {
+                  // printf("Insert fail\n");
                   bustub->txn_manager_->Abort(txn);
                   metrics.TxnAborted();
                 } else {
@@ -349,6 +353,7 @@ auto main(int argc, char **argv) -> int {
         bool txn_success = true;
 
         std::string query = fmt::format("SELECT count(*) FROM nft WHERE terrier = {}", terrier_id);
+        // std::cout << query << std::endl;
         if (!bustub->ExecuteSqlTxn(query, writer, txn)) {
           txn_success = false;
         }
@@ -357,6 +362,7 @@ auto main(int argc, char **argv) -> int {
           bustub->txn_manager_->Commit(txn);
           metrics.TxnCommitted();
         } else {
+          // printf("select fail\n");
           bustub->txn_manager_->Abort(txn);
           metrics.TxnAborted();
         }
@@ -385,6 +391,7 @@ auto main(int argc, char **argv) -> int {
       bool txn_success = true;
 
       std::string query = "SELECT * FROM nft";
+      // std::cout << query << std::endl;
       if (!bustub->ExecuteSqlTxn(query, writer, txn)) {
         txn_success = false;
       }
@@ -445,6 +452,7 @@ auto main(int argc, char **argv) -> int {
           metrics.TxnAborted();
         }
       } else {
+        // printf("select fail\n");
         bustub->txn_manager_->Abort(txn);
         metrics.TxnAborted();
       }
