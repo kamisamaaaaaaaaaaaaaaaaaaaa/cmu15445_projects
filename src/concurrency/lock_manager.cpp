@@ -354,7 +354,7 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
   auto txn_state = txn->GetState();
   auto iso_level = txn->GetIsolationLevel();
   if (txn_state == TransactionState::COMMITTED || txn_state == TransactionState::ABORTED) {
-    printf("err1\n");
+    // printf("err1\n");
     return false;
   }
 
@@ -379,7 +379,7 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
     if (!LockTableDirectlyOrNot(txn, LockMode::INTENTION_SHARED, oid, false) &&
         !LockTableDirectlyOrNot(txn, LockMode::SHARED, oid, false) &&
         !LockTableDirectlyOrNot(txn, LockMode::SHARED_INTENTION_EXCLUSIVE, oid, false)) {
-      printf("err2\n");
+      // printf("err2\n");
       return false;
     }
   } else if (lock_mode == LockMode::EXCLUSIVE && !CheckTableOwnLock(txn, LockMode::INTENTION_EXCLUSIVE, oid) &&
@@ -388,7 +388,7 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
     if (!LockTableDirectlyOrNot(txn, LockMode::INTENTION_EXCLUSIVE, oid, false) &&
         !LockTableDirectlyOrNot(txn, LockMode::EXCLUSIVE, oid, false) &&
         !LockTableDirectlyOrNot(txn, LockMode::SHARED_INTENTION_EXCLUSIVE, oid, false)) {
-      printf("err3\n");
+      // printf("err3\n");
       return false;
     }
   }
@@ -443,7 +443,7 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
   if (txn->GetState() == TransactionState::ABORTED) {
     // printf("txn abort id: %d\n", txn->GetTransactionId());
     lrq->cv_.notify_all();
-    printf("err4\n");
+    // printf("err4\n");
     return false;
   }
 
@@ -679,7 +679,7 @@ void LockManager::RunCycleDetection() {
         for (auto &[k, v] : waits_for) {
           if (!has_search[k] && HasCycle(k)) {
             has_cy = true;
-
+            printf("cycle\n");
             auto abort_tid = stk.back();
             // printf("abort_id:%d\n", abort_tid);
             txn_manager_->GetTransaction(abort_tid)->SetState(TransactionState::ABORTED);

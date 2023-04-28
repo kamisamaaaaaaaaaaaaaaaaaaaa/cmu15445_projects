@@ -17,6 +17,7 @@ auto Optimizer::OptimizeCustom(const AbstractPlanNodeRef &plan) -> AbstractPlanN
   p = OptimizeNLJAsIndexJoin(p);
   p = OptimizeSelectIndexScan(p);
   p = OptimizeColumnPruning(p);
+  p = OptimizeMergeFilterScan(p);
   return p;
 }
 

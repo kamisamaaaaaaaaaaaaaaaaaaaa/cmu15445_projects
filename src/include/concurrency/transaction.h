@@ -75,6 +75,8 @@ class TableWriteRecord {
   // Recording write type might be useful if you want to implement in-place update for leaderboard
   // optimization. You don't need it for the basic implementation.
   WType wtype_;
+  Tuple old_tuple_;
+  TupleMeta old_tuple_meta_;
 };
 
 /**
