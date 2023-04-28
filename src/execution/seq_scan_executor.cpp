@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "execution/executors/seq_scan_executor.h"
+#include "type/value_factory.h"
 
 namespace bustub {
 
@@ -26,6 +27,7 @@ SeqScanExecutor::~SeqScanExecutor() {
 }
 
 void SeqScanExecutor::Init() {
+  // printf("seqscan Init\n");
   table_oid_ = plan_->GetTableOid();
 
   if (exec_ctx_->IsDelete()) {
@@ -121,7 +123,10 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
       }
     }
 
-    if (iter_->GetTuple().first.is_deleted_) {
+    if (iter_->GetTuple().first.is_deleted_ ||
+        (plan_->filter_predicate_ != nullptr &&
+         plan_->filter_predicate_->Evaluate(tuple, exec_ctx_->GetCatalog()->GetTable(table_oid_)->schema_)
+                 .CompareEquals(ValueFactory::GetBooleanValue(false)) == CmpBool::CmpTrue)) {
       try {
         bool success =
             exec_ctx_->GetLockManager()->UnlockRow(exec_ctx_->GetTransaction(), table_oid_, tuple->GetRid(), true);

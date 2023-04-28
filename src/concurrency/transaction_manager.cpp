@@ -31,6 +31,7 @@ void TransactionManager::Commit(Transaction *txn) {
 
 void TransactionManager::Abort(Transaction *txn) {
   /* TODO: revert all the changes in write set */
+
   while (!txn->GetWriteSet()->empty()) {
     auto twr = txn->GetWriteSet()->back();
 
@@ -42,9 +43,24 @@ void TransactionManager::Abort(Transaction *txn) {
       auto tuple_meta = twr.table_heap_->GetTupleMeta(twr.rid_);
       tuple_meta.is_deleted_ = false;
       twr.table_heap_->UpdateTupleMeta(tuple_meta, twr.rid_);
+    } else if (twr.wtype_ == WType::UPDATE) {
+      twr.table_heap_->UpdateTupleInPlaceUnsafe(twr.old_tuple_meta_, twr.old_tuple_, twr.rid_);
     }
 
     txn->GetWriteSet()->pop_back();
+  }
+
+  while (!txn->GetIndexWriteSet()->empty()) {
+    // printf("index rollback\n");
+    auto iwr = txn->GetIndexWriteSet()->back();
+    if (iwr.wtype_ == WType::INSERT) {
+      iwr.catalog_->GetIndex(iwr.index_oid_)->index_->DeleteEntry(iwr.tuple_, iwr.rid_, txn);
+    } else if (iwr.wtype_ == WType::DELETE) {
+      // printf("index : %d revert\n", iwr.index_oid_);
+      iwr.catalog_->GetIndex(iwr.index_oid_)->index_->InsertEntry(iwr.tuple_, iwr.rid_, txn);
+    }
+
+    txn->GetIndexWriteSet()->pop_back();
   }
 
   ReleaseLocks(txn);

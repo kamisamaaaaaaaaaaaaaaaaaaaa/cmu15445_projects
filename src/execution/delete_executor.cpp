@@ -54,6 +54,10 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       Tuple partial_tuple =
           tuple->KeyFromTuple(table_info_->schema_, *(x->index_->GetKeySchema()), x->index_->GetKeyAttrs());
       x->index_->DeleteEntry(partial_tuple, *rid, exec_ctx_->GetTransaction());
+
+      auto iwr = IndexWriteRecord{*rid,          table_info_->oid_, WType::DELETE,
+                                  partial_tuple, x->index_oid_,     exec_ctx_->GetCatalog()};
+      exec_ctx_->GetTransaction()->GetIndexWriteSet()->push_back(iwr);
     }
   }
 

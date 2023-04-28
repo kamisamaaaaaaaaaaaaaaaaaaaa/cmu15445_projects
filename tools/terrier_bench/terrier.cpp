@@ -127,6 +127,13 @@ auto ParseBool(const std::string &str) -> bool {
   throw bustub::Exception(fmt::format("unexpected arg: {}", str));
 }
 
+void CheckTableLock(bustub::Transaction *txn) {
+  if (!txn->GetExclusiveTableLockSet()->empty() || !txn->GetSharedTableLockSet()->empty()) {
+    fmt::print("should not acquire S/X table lock, grab IS/IX instead");
+    exit(1);
+  }
+}
+
 // NOLINTNEXTLINE
 auto main(int argc, char **argv) -> int {
   argparse::ArgumentParser program("bustub-terrier-bench");
@@ -264,6 +271,7 @@ auto main(int argc, char **argv) -> int {
             if (enable_update) {
               auto txn = bustub->txn_manager_->Begin(nullptr, bustub::IsolationLevel::REPEATABLE_READ);
               std::string query = fmt::format("UPDATE nft SET terrier = {} WHERE id = {}", terrier_id, nft_id);
+              std::cout << query << std::endl;
               if (!bustub->ExecuteSqlTxn(query, writer, txn)) {
                 txn_success = false;
               }
@@ -274,6 +282,7 @@ auto main(int argc, char **argv) -> int {
               }
 
               if (txn_success) {
+                CheckTableLock(txn);
                 bustub->txn_manager_->Commit(txn);
                 metrics.TxnCommitted();
               } else {
@@ -285,7 +294,7 @@ auto main(int argc, char **argv) -> int {
               auto txn = bustub->txn_manager_->Begin(nullptr, bustub::IsolationLevel::REPEATABLE_READ);
 
               std::string query = fmt::format("DELETE FROM nft WHERE id = {}", nft_id);
-              // std::cout << query << std::endl;
+              std::cout << query << std::endl;
               if (!bustub->ExecuteSqlTxn(query, writer, txn)) {
                 txn_success = false;
               }
@@ -296,13 +305,12 @@ auto main(int argc, char **argv) -> int {
               }
 
               if (!txn_success) {
-                // printf("Delete fail\n");
                 bustub->txn_manager_->Abort(txn);
                 metrics.TxnAborted();
                 delete txn;
               } else {
                 query = fmt::format("INSERT INTO nft VALUES ({}, {})", nft_id, terrier_id);
-                // std::cout << query << std::endl;
+                std::cout << query << std::endl;
                 if (!bustub->ExecuteSqlTxn(query, writer, txn)) {
                   txn_success = false;
                 }
@@ -313,10 +321,10 @@ auto main(int argc, char **argv) -> int {
                 }
 
                 if (!txn_success) {
-                  // printf("Insert fail\n");
                   bustub->txn_manager_->Abort(txn);
                   metrics.TxnAborted();
                 } else {
+                  CheckTableLock(txn);
                   bustub->txn_manager_->Commit(txn);
                   metrics.TxnCommitted();
                 }
@@ -353,16 +361,15 @@ auto main(int argc, char **argv) -> int {
         bool txn_success = true;
 
         std::string query = fmt::format("SELECT count(*) FROM nft WHERE terrier = {}", terrier_id);
-        // std::cout << query << std::endl;
         if (!bustub->ExecuteSqlTxn(query, writer, txn)) {
           txn_success = false;
         }
 
         if (txn_success) {
+          CheckTableLock(txn);
           bustub->txn_manager_->Commit(txn);
           metrics.TxnCommitted();
         } else {
-          // printf("select fail\n");
           bustub->txn_manager_->Abort(txn);
           metrics.TxnAborted();
         }
@@ -391,12 +398,13 @@ auto main(int argc, char **argv) -> int {
       bool txn_success = true;
 
       std::string query = "SELECT * FROM nft";
-      // std::cout << query << std::endl;
+
       if (!bustub->ExecuteSqlTxn(query, writer, txn)) {
         txn_success = false;
       }
 
       if (txn_success) {
+        printf("first select\n");
         auto all_nfts = bustub::StringUtil::Split(ss.str(), '\n');
         auto all_nfts_integer = std::vector<int>();
         for (auto &nft : all_nfts) {
@@ -437,7 +445,21 @@ auto main(int argc, char **argv) -> int {
         }
 
         if (txn_success) {
+          printf("second select\n");
           if (ss.str() != prev_result) {
+            printf("prev:\n");
+            std::cout << prev_result << std::endl;
+            printf("current\n");
+            std::cout << ss.str() << std::endl;
+
+            printf("不同之处为:\n");
+            std::cout << "pre_size: " << prev_result.size() << " cur_size: " << ss.str().size() << std::endl;
+            for (size_t i = 0; i < prev_result.size(); i++) {
+              if (prev_result[i] != ss.str()[i]) {
+                std::cout << i << " " << prev_result[i] << " " << ss.str()[i] << std::endl;
+              }
+            }
+
             fmt::print("ERROR: non repeatable read!\n");
             if (bustub_nft_num <= 100) {
               fmt::print("This is everything in your database:\n--- previous query ---\n{}\n--- this query ---\n{}\n",
@@ -445,6 +467,7 @@ auto main(int argc, char **argv) -> int {
             }
             exit(1);
           }
+          CheckTableLock(txn);
           bustub->txn_manager_->Commit(txn);
           metrics.TxnCommitted();
         } else {
@@ -452,13 +475,17 @@ auto main(int argc, char **argv) -> int {
           metrics.TxnAborted();
         }
       } else {
-        // printf("select fail\n");
         bustub->txn_manager_->Abort(txn);
         metrics.TxnAborted();
       }
       delete txn;
 
       metrics.Report();
+
+      if (bustub_nft_num > 1000) {
+        // if NFT num is large, sleep this thread to avoid lock contention
+        std::this_thread::sleep_for(std::chrono::seconds(3));
+      }
     }
 
     total_metrics.ReportVerify(metrics.aborted_txn_cnt_, metrics.committed_txn_cnt_);
@@ -491,6 +518,14 @@ auto main(int argc, char **argv) -> int {
       bustub->ExecuteSqlTxn(sql, writer, txn);
       cnt += std::stoi(ss.str());
     }
+
+    {
+      auto writer = bustub::SimpleStreamWriter(std::cout, true);
+      auto sql = "SELECT count(*) FROM nft WHERE terrier = 0";
+      std::cout << "SELECT count(*) FROM nft WHERE terrier = 0: ";
+      bustub->ExecuteSqlTxn(sql, writer, txn);
+    }
+
     bustub->txn_manager_->Commit(txn);
     delete txn;
     if (cnt != bustub_nft_num) {

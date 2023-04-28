@@ -17,6 +17,7 @@ auto Optimizer::Optimize(const AbstractPlanNodeRef &plan) -> AbstractPlanNodeRef
     p = OptimizeNLJAsHashJoin(p);
     p = OptimizeSelectIndexScan(p);
     p = OptimizeColumnPruning(p);
+    p = OptimizeMergeFilterScan(p);
     return p;
   }
   // By default, use user-defined rules.
