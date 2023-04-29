@@ -298,7 +298,7 @@ class LockManager {
    * @param[out] txn_id if the graph has a cycle, will contain the newest transaction ID
    * @return false if the graph has no cycle, otherwise stores the newest transaction ID in the cycle to txn_id
    */
-  auto HasCycle(txn_id_t txn_id) -> bool;
+  auto HasCycle(txn_id_t *txn_id) -> bool;
 
   /**
    * @return all edges in current waits_for graph
@@ -332,6 +332,7 @@ class LockManager {
   auto LockTableDirectlyOrNot(Transaction *txn, LockMode lock_mode, const table_oid_t &oid, bool directly) -> bool;
   void build_graph();
   void RemoveAllAboutAbortTxn(txn_id_t abort_id);
+  auto dfs(txn_id_t tid) -> bool;
   void print_graph();
 
   /** Structure that holds lock requests for a given table oid */

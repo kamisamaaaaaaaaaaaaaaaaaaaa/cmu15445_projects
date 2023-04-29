@@ -271,7 +271,7 @@ auto main(int argc, char **argv) -> int {
             if (enable_update) {
               auto txn = bustub->txn_manager_->Begin(nullptr, bustub::IsolationLevel::REPEATABLE_READ);
               std::string query = fmt::format("UPDATE nft SET terrier = {} WHERE id = {}", terrier_id, nft_id);
-              std::cout << query << std::endl;
+              // std::cout << query << std::endl;
               if (!bustub->ExecuteSqlTxn(query, writer, txn)) {
                 txn_success = false;
               }
@@ -294,28 +294,34 @@ auto main(int argc, char **argv) -> int {
               auto txn = bustub->txn_manager_->Begin(nullptr, bustub::IsolationLevel::REPEATABLE_READ);
 
               std::string query = fmt::format("DELETE FROM nft WHERE id = {}", nft_id);
-              std::cout << query << std::endl;
+              // std::cout << "txn: " << txn->GetTransactionId() << " " << query << std::endl;
               if (!bustub->ExecuteSqlTxn(query, writer, txn)) {
                 txn_success = false;
               }
 
               if (txn_success && ss.str() != "1\t\n") {
+                printf("删除失败\n");
+                std::cout << "txn: " << txn->GetTransactionId() << " " << query << std::endl;
+                printf("-------------------\n");
                 fmt::print("unexpected result \"{}\",\n", ss.str());
                 exit(1);
               }
 
               if (!txn_success) {
+                // printf("not success\n");
                 bustub->txn_manager_->Abort(txn);
                 metrics.TxnAborted();
                 delete txn;
               } else {
+                // std::cout << "txn: " << txn->GetTransactionId() << " delete success" << std::endl;
                 query = fmt::format("INSERT INTO nft VALUES ({}, {})", nft_id, terrier_id);
-                std::cout << query << std::endl;
+                // std::cout << "txn: " << txn->GetTransactionId() << " " << query << std::endl;
                 if (!bustub->ExecuteSqlTxn(query, writer, txn)) {
                   txn_success = false;
                 }
 
                 if (txn_success && ss.str() != "1\t\n1\t\n") {
+                  printf("插入失败\n");
                   fmt::print("unexpected result \"{}\",\n", ss.str());
                   exit(1);
                 }
@@ -398,13 +404,13 @@ auto main(int argc, char **argv) -> int {
       bool txn_success = true;
 
       std::string query = "SELECT * FROM nft";
-
+      // printf("first select start\n");
       if (!bustub->ExecuteSqlTxn(query, writer, txn)) {
         txn_success = false;
       }
 
       if (txn_success) {
-        printf("first select\n");
+        // printf("first select finished\n");
         auto all_nfts = bustub::StringUtil::Split(ss.str(), '\n');
         auto all_nfts_integer = std::vector<int>();
         for (auto &nft : all_nfts) {
@@ -440,26 +446,15 @@ auto main(int argc, char **argv) -> int {
 
         std::stringstream ss;
         auto writer = bustub::SimpleStreamWriter(ss, true);
+        // printf("second select start\n");
         if (!bustub->ExecuteSqlTxn(query, writer, txn)) {
           txn_success = false;
         }
 
         if (txn_success) {
-          printf("second select\n");
+          // printf("second select finished\n");
           if (ss.str() != prev_result) {
-            printf("prev:\n");
-            std::cout << prev_result << std::endl;
-            printf("current\n");
-            std::cout << ss.str() << std::endl;
-
-            printf("不同之处为:\n");
-            std::cout << "pre_size: " << prev_result.size() << " cur_size: " << ss.str().size() << std::endl;
-            for (size_t i = 0; i < prev_result.size(); i++) {
-              if (prev_result[i] != ss.str()[i]) {
-                std::cout << i << " " << prev_result[i] << " " << ss.str()[i] << std::endl;
-              }
-            }
-
+            // printf("non repeatable read tid:%d\n", txn->GetTransactionId());
             fmt::print("ERROR: non repeatable read!\n");
             if (bustub_nft_num <= 100) {
               fmt::print("This is everything in your database:\n--- previous query ---\n{}\n--- this query ---\n{}\n",

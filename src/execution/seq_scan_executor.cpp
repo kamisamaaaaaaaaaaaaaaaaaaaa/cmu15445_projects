@@ -27,39 +27,14 @@ SeqScanExecutor::~SeqScanExecutor() {
 }
 
 void SeqScanExecutor::Init() {
-  // printf("seqscan Init\n");
   table_oid_ = plan_->GetTableOid();
 
   if (exec_ctx_->IsDelete()) {
-    try {
-      bool success = exec_ctx_->GetLockManager()->LockTable(
-          exec_ctx_->GetTransaction(), bustub::LockManager::LockMode::INTENTION_EXCLUSIVE, table_oid_);
-      if (!success) {
-        const std::string info = "seqscan(deleted) table IX lock fail";
-        init_throw_error = true;
-        throw ExecutionException(info);
-      }
-    } catch (TransactionAbortException &e) {
-      const std::string info = "seqscan(deleted) table IX lock fail";
-      init_throw_error = true;
-      throw ExecutionException(info);
-    }
+    TryLockTable(bustub::LockManager::LockMode::INTENTION_EXCLUSIVE, table_oid_);
   } else {
     auto iso_level = exec_ctx_->GetTransaction()->GetIsolationLevel();
     if (iso_level == IsolationLevel::READ_COMMITTED || iso_level == IsolationLevel::REPEATABLE_READ) {
-      try {
-        bool success = exec_ctx_->GetLockManager()->LockTable(
-            exec_ctx_->GetTransaction(), bustub::LockManager::LockMode::INTENTION_SHARED, table_oid_);
-        if (!success) {
-          const std::string info = "seqscan table IS lock fail";
-          init_throw_error = true;
-          throw ExecutionException(info);
-        }
-      } catch (TransactionAbortException &e) {
-        const std::string info = "seqscan table IS lock fail";
-        init_throw_error = true;
-        throw ExecutionException(info);
-      }
+      TryLockTable(bustub::LockManager::LockMode::INTENTION_SHARED, table_oid_);
     }
   }
 
@@ -75,16 +50,7 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     if (iter_->IsEnd()) {
       auto iso_level = exec_ctx_->GetTransaction()->GetIsolationLevel();
       if (iso_level == IsolationLevel::READ_COMMITTED && !exec_ctx_->IsDelete()) {
-        try {
-          bool success = exec_ctx_->GetLockManager()->UnlockTable(exec_ctx_->GetTransaction(), table_oid_);
-          if (!success) {
-            const std::string info = "seqscan table unlock fail";
-            throw ExecutionException(info);
-          }
-        } catch (TransactionAbortException &e) {
-          const std::string info = "seqscan table unlock fail";
-          throw ExecutionException(info);
-        }
+        TryUnLockTable(table_oid_);
       }
 
       delete iter_;
@@ -95,31 +61,11 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     *tuple = iter_->GetTuple().second;
 
     if (exec_ctx_->IsDelete()) {
-      try {
-        auto success = exec_ctx_->GetLockManager()->LockRow(
-            exec_ctx_->GetTransaction(), bustub::LockManager::LockMode::EXCLUSIVE, table_oid_, tuple->GetRid());
-        if (!success) {
-          const std::string info = "seqscan(delete) table row X lock fail";
-          throw ExecutionException(info);
-        }
-      } catch (TransactionAbortException &e) {
-        const std::string info = "seqscan(delete) table row X lock fail";
-        throw ExecutionException(info);
-      }
+      TryLockRow(bustub::LockManager::LockMode::EXCLUSIVE, table_oid_, tuple->GetRid());
     } else {
       auto iso_level = exec_ctx_->GetTransaction()->GetIsolationLevel();
       if (iso_level == IsolationLevel::READ_COMMITTED || iso_level == IsolationLevel::REPEATABLE_READ) {
-        try {
-          bool success = exec_ctx_->GetLockManager()->LockRow(
-              exec_ctx_->GetTransaction(), bustub::LockManager::LockMode::SHARED, table_oid_, tuple->GetRid());
-          if (!success) {
-            const std::string info = "seqscan table row S lock fail";
-            throw ExecutionException(info);
-          }
-        } catch (TransactionAbortException &e) {
-          const std::string info = "seqscan table row S lock fail";
-          throw ExecutionException(info);
-        }
+        TryLockRow(bustub::LockManager::LockMode::SHARED, table_oid_, tuple->GetRid());
       }
     }
 
@@ -127,36 +73,17 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
         (plan_->filter_predicate_ != nullptr &&
          plan_->filter_predicate_->Evaluate(tuple, exec_ctx_->GetCatalog()->GetTable(table_oid_)->schema_)
                  .CompareEquals(ValueFactory::GetBooleanValue(false)) == CmpBool::CmpTrue)) {
-      try {
-        bool success =
-            exec_ctx_->GetLockManager()->UnlockRow(exec_ctx_->GetTransaction(), table_oid_, tuple->GetRid(), true);
-        if (!success) {
-          const std::string info = "seqscan(is_deleted) row force unlock fail";
-          throw ExecutionException(info);
-        }
-      } catch (TransactionAbortException &e) {
-        const std::string info = "seqscan(is_deleted) row force unlock fail";
-        throw ExecutionException(info);
-      }
+      TryUnLockRow(table_oid_, tuple->GetRid(), true);
       ++(*iter_);
       continue;
     } else {
       auto iso_level = exec_ctx_->GetTransaction()->GetIsolationLevel();
       if (iso_level == IsolationLevel::READ_COMMITTED && !exec_ctx_->IsDelete()) {
-        try {
-          bool success =
-              exec_ctx_->GetLockManager()->UnlockRow(exec_ctx_->GetTransaction(), table_oid_, tuple->GetRid());
-          if (!success) {
-            const std::string info = "seqscan row unlock fail";
-            throw ExecutionException(info);
-          }
-        } catch (TransactionAbortException &e) {
-          const std::string info = "seqscan row unlock fail";
-          throw ExecutionException(info);
-        }
+        TryUnLockRow(table_oid_, tuple->GetRid());
       }
     }
 
+    *tuple = iter_->GetTuple().second;
     *rid = tuple->GetRid();
     break;
   }
