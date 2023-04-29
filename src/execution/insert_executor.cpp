@@ -60,6 +60,8 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       *rid = rid_optional.value();
       nums++;
 
+      // std::cout << "tid: " << exec_ctx_->GetTransaction()->GetTransactionId() << " insert " << *rid << std::endl;
+
       auto twr = TableWriteRecord{table_info_->oid_, *rid, table_info_->table_.get()};
       twr.wtype_ = WType::INSERT;
       exec_ctx_->GetTransaction()->GetWriteSet()->push_back(twr);

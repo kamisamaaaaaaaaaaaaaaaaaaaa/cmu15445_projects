@@ -55,8 +55,8 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
 
     auto twr = TableWriteRecord{table_info_->oid_, *rid, table_info_->table_.get()};
     twr.wtype_ = WType::UPDATE;
-    twr.old_tuple_ = *tuple;
-    twr.old_tuple_meta_ = TupleMeta{INVALID_TXN_ID, INVALID_TXN_ID, false};
+    // twr.old_tuple_ = *tuple;
+    // twr.old_tuple_meta_ = TupleMeta{INVALID_TXN_ID, INVALID_TXN_ID, false};
     exec_ctx_->GetTransaction()->GetWriteSet()->push_back(twr);
 
     for (auto &x : index_infos_) {

@@ -71,6 +71,7 @@ void LockManager::AddIntoTxnTableLockSet(Transaction *txn, LockMode lock_mode, c
   } else if (lock_mode == LockMode::EXCLUSIVE) {
     txn->GetExclusiveTableLockSet()->insert(oid);
   } else if (lock_mode == LockMode::INTENTION_SHARED) {
+    // printf("txn %d is\n", txn->GetTransactionId());
     txn->GetIntentionSharedTableLockSet()->insert(oid);
   } else if (lock_mode == LockMode::INTENTION_EXCLUSIVE) {
     txn->GetIntentionExclusiveTableLockSet()->insert(oid);
@@ -202,26 +203,33 @@ auto LockManager::CheckAllRowsUnlock(Transaction *txn, const table_oid_t &oid) -
 // directly为true代表直接对表加锁，false代表对行加锁时需要先对表加锁
 auto LockManager::LockTableDirectlyOrNot(Transaction *txn, LockMode lock_mode, const table_oid_t &oid, bool directly)
     -> bool {
+  // printf("txn %d requese\n", txn->GetTransactionId());
   // 判断lockmode和isolevel以及txn_state是否兼容
   auto txn_state = txn->GetState();
   auto iso_level = txn->GetIsolationLevel();
   if (txn_state == TransactionState::COMMITTED || txn_state == TransactionState::ABORTED) {
+    printf("ck1\n");
     return false;
   }
+
   if (txn_state == TransactionState::GROWING) {
     if (iso_level == IsolationLevel::READ_UNCOMMITTED) {
       if (lock_mode != LockMode::INTENTION_EXCLUSIVE && lock_mode != LockMode::EXCLUSIVE) {
+        printf("ck2\n");
         return false;
       }
     }
   } else if (txn_state == TransactionState::SHRINKING) {
     if (iso_level == IsolationLevel::REPEATABLE_READ) {
+      printf("ck3\n");
       return false;
     } else if (iso_level == IsolationLevel::READ_COMMITTED) {
       if (lock_mode != LockMode::INTENTION_SHARED && lock_mode != LockMode::SHARED) {
+        printf("ck4\n");
         return false;
       }
     } else if (iso_level == IsolationLevel::READ_UNCOMMITTED) {
+      printf("ck5\n");
       return false;
     }
   }
@@ -232,10 +240,10 @@ auto LockManager::LockTableDirectlyOrNot(Transaction *txn, LockMode lock_mode, c
     table_lock_map_[oid] = std::make_shared<LockRequestQueue>();
   }
 
-  auto &lrq = table_lock_map_[oid];
+  auto lrq = table_lock_map_[oid];
+  std::unique_lock<std::mutex> lock(lrq->latch_);
   table_lock_map_latch_.unlock();
 
-  std::unique_lock<std::mutex> lock(lrq->latch_);
   // 检查此锁请求是否为一次锁升级
   bool upgrade = false;
   for (auto iter = lrq->request_queue_.begin(); iter != lrq->request_queue_.end(); iter++) {
@@ -248,6 +256,7 @@ auto LockManager::LockTableDirectlyOrNot(Transaction *txn, LockMode lock_mode, c
       }
       if (lrq->upgrading_ != INVALID_TXN_ID) {
         if (!directly) {
+          printf("ck6\n");
           return false;
         }
 
@@ -257,6 +266,7 @@ auto LockManager::LockTableDirectlyOrNot(Transaction *txn, LockMode lock_mode, c
       }
       if (!CanLockUpgrade(lr->lock_mode_, lock_mode)) {
         if (!directly) {
+          printf("ck7\n");
           return false;
         }
 
@@ -288,8 +298,10 @@ auto LockManager::LockTableDirectlyOrNot(Transaction *txn, LockMode lock_mode, c
   if (txn->GetState() == TransactionState::ABORTED) {
     // printf("txn abort id: %d\n", txn->GetTransactionId());
     lrq->cv_.notify_all();
+    printf("ck8\n");
     return false;
   }
+  // printf("txn %d lock\n", txn->GetTransactionId());
 
   AddIntoTxnTableLockSet(txn, lock_mode, oid);
 
@@ -301,6 +313,7 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
 }
 
 auto LockManager::UnlockTable(Transaction *txn, const table_oid_t &oid) -> bool {
+  // printf("txn %d unlock\n", txn->GetTransactionId());
   if (!CheckAllRowsUnlock(txn, oid)) {
     txn->SetState(TransactionState::ABORTED);
     throw TransactionAbortException(txn->GetTransactionId(), AbortReason::TABLE_UNLOCKED_BEFORE_UNLOCKING_ROWS);
@@ -308,9 +321,9 @@ auto LockManager::UnlockTable(Transaction *txn, const table_oid_t &oid) -> bool 
 
   table_lock_map_latch_.lock();
   auto lrq = table_lock_map_[oid];
+  std::unique_lock<std::mutex> lock(lrq->latch_);
   table_lock_map_latch_.unlock();
 
-  std::unique_lock<std::mutex> lock(lrq->latch_);
   for (auto iter = lrq->request_queue_.begin(); iter != lrq->request_queue_.end(); iter++) {
     auto lr = *iter;
     if (lr->granted_ && lr->txn_id_ == txn->GetTransactionId()) {
@@ -398,9 +411,8 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
     row_lock_map_[rid] = std::make_shared<LockRequestQueue>();
   }
   auto lrq = row_lock_map_[rid];
-  row_lock_map_latch_.unlock();
-
   std::unique_lock<std::mutex> lock(lrq->latch_);
+  row_lock_map_latch_.unlock();
 
   // 检查此锁请求是否为一次锁升级(S->X)
   bool upgrade = false;
@@ -457,9 +469,9 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
 auto LockManager::UnlockRow(Transaction *txn, const table_oid_t &oid, const RID &rid, bool force) -> bool {
   row_lock_map_latch_.lock();
   auto lrq = row_lock_map_[rid];
+  std::unique_lock<std::mutex> lock(lrq->latch_);
   row_lock_map_latch_.unlock();
 
-  std::unique_lock<std::mutex> lock(lrq->latch_);
   for (auto iter = lrq->request_queue_.begin(); iter != lrq->request_queue_.end(); iter++) {
     auto lr = *iter;
     if (lr->granted_ && lr->txn_id_ == txn->GetTransactionId()) {
@@ -525,14 +537,14 @@ void LockManager::AddEdge(txn_id_t t1, txn_id_t t2) { waits_for[t1].insert(t2); 
 
 void LockManager::RemoveEdge(txn_id_t t1, txn_id_t t2) { waits_for[t1].erase(t2); }
 
-auto LockManager::HasCycle(txn_id_t txn_id) -> bool {
+auto LockManager::dfs(txn_id_t txn_id) -> bool {
   has_search[txn_id] = true;
   stk.push_back(txn_id);
   in_stk[txn_id] = true;
 
   for (auto x : waits_for[txn_id]) {
     if (!has_search[x]) {
-      if (HasCycle(x)) return true;
+      if (dfs(x)) return true;
     } else if (in_stk[x]) {
       return true;
     }
@@ -541,6 +553,16 @@ auto LockManager::HasCycle(txn_id_t txn_id) -> bool {
   stk.pop_back();
   in_stk[txn_id] = false;
 
+  return false;
+}
+
+auto LockManager::HasCycle(txn_id_t *txn_id) -> bool {
+  for (auto &[k, v] : waits_for) {
+    if (!has_search[k] && dfs(k)) {
+      *txn_id = stk.back();
+      return true;
+    }
+  }
   return false;
 }
 
@@ -675,23 +697,11 @@ void LockManager::RunCycleDetection() {
         in_stk.clear();
         has_search.clear();
 
-        bool has_cy = false;
-        for (auto &[k, v] : waits_for) {
-          if (!has_search[k] && HasCycle(k)) {
-            has_cy = true;
-            printf("cycle\n");
-            auto abort_tid = stk.back();
-            // printf("abort_id:%d\n", abort_tid);
-            txn_manager_->GetTransaction(abort_tid)->SetState(TransactionState::ABORTED);
-            RemoveAllAboutAbortTxn(abort_tid);
-            // printf("graph after remove\n");
-            // print_graph();
-            break;
-          }
-        }
-
-        // printf("has_cy:%d\n", has_cy);
-        if (!has_cy) {
+        txn_id_t abort_tid;
+        if (HasCycle(&abort_tid)) {
+          txn_manager_->GetTransaction(abort_tid)->SetState(TransactionState::ABORTED);
+          RemoveAllAboutAbortTxn(abort_tid);
+        } else {
           break;
         }
       }
